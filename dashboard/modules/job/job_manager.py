@@ -58,7 +58,7 @@ if sys.platform == "win32":
         import win32api
         import win32con
         import win32job
-    except (ModuleNotFoundError, ImportError) as e:
+    except ImportError as e:
         win32api = None
         win32con = None
         win32job = None
@@ -119,10 +119,9 @@ class JobLogStorageClient:
         for lines in log_tail_iter:
             if lines is None:
                 break
-            else:
-                # log_tail_iter can return batches of lines at a time.
-                for line in lines:
-                    log_tail_deque.append(line)
+            # log_tail_iter can return batches of lines at a time.
+            for line in lines:
+                log_tail_deque.append(line)
 
         return "".join(log_tail_deque)[-self.MAX_LOG_SIZE :]
 
@@ -164,10 +163,10 @@ class JobSupervisor:
         self._log_client = JobLogStorageClient()
         self._entrypoint = entrypoint
 
-        # Default metadata if not passed by the user.
-        self._metadata = {JOB_ID_METADATA_KEY: job_id, JOB_NAME_METADATA_KEY: job_id}
-        self._metadata.update(user_metadata)
-
+        self._metadata = {
+            JOB_ID_METADATA_KEY: job_id,
+            JOB_NAME_METADATA_KEY: job_id,
+        } | user_metadata
         # fire and forget call from outer job manager to this actor
         self._stop_event = asyncio.Event()
 
@@ -263,7 +262,7 @@ class JobSupervisor:
                     stderr=subprocess.DEVNULL,
                 )
 
-            elif sys.platform == "win32" and win32api:
+            elif win32api:
                 # Create a JobObject to which the child process (and its children)
                 # will be connected. This job object can be used to kill the child
                 # processes explicitly or when the jobObject gets deleted during
@@ -476,18 +475,11 @@ class JobSupervisor:
                     )
                 else:
                     log_tail = self._log_client.get_last_n_log_lines(self._job_id)
-                    if log_tail is not None and log_tail != "":
-                        message = (
-                            "Job entrypoint command "
-                            f"failed with exit code {return_code}, "
-                            "last available logs (truncated to 20,000 chars):\n"
-                            + log_tail
-                        )
-                    else:
-                        message = (
-                            "Job entrypoint command "
-                            f"failed with exit code {return_code}"
-                        )
+                    message = (
+                        f"Job entrypoint command failed with exit code {return_code}, last available logs (truncated to 20,000 chars):\n{log_tail}"
+                        if log_tail is not None and log_tail != ""
+                        else f"Job entrypoint command failed with exit code {return_code}"
+                    )
                     await self._job_info_client.put_status(
                         self._job_id, JobStatus.FAILED, message=message
                     )
@@ -643,11 +635,7 @@ class JobManager:
                     job_supervisor = self._get_actor_for_job(job_id)
 
                 if job_supervisor is None:
-                    if job_status == JobStatus.PENDING:
-                        # Maybe the job supervisor actor is not created yet.
-                        # We will wait for the next loop.
-                        continue
-                    else:
+                    if job_status != JobStatus.PENDING:
                         # The job supervisor actor is not created, but the job
                         # status is not PENDING. This means the job supervisor
                         # actor is not created due to some unexpected errors.
@@ -662,8 +650,9 @@ class JobManager:
                             ),
                         )
                         is_alive = False
-                        continue
-
+                    # Maybe the job supervisor actor is not created yet.
+                    # We will wait for the next loop.
+                    continue
                 await job_supervisor.ping.remote()
 
                 await asyncio.sleep(self.JOB_MONITOR_LOOP_PERIOD_S)
@@ -817,17 +806,14 @@ class JobManager:
                 "scheduling strategy for the job driver instead of running "
                 "it on the head node."
             )
-            scheduling_strategy = "DEFAULT"
+            return "DEFAULT"
         else:
             head_node_id = head_node_id_bytes.decode()
             logger.info(
                 "Head node ID found in GCS; scheduling job driver on "
                 f"head node {head_node_id}"
             )
-            scheduling_strategy = NodeAffinitySchedulingStrategy(
-                node_id=head_node_id, soft=False
-            )
-        return scheduling_strategy
+            return NodeAffinitySchedulingStrategy(node_id=head_node_id, soft=False)
 
     async def submit_job(
         self,
@@ -960,13 +946,12 @@ class JobManager:
         Returns whether or not the job was running.
         """
         job_supervisor_actor = self._get_actor_for_job(job_id)
-        if job_supervisor_actor is not None:
-            # Actor is still alive, signal it to stop the driver, fire and
-            # forget
-            job_supervisor_actor.stop.remote()
-            return True
-        else:
+        if job_supervisor_actor is None:
             return False
+        # Actor is still alive, signal it to stop the driver, fire and
+        # forget
+        job_supervisor_actor.stop.remote()
+        return True
 
     async def delete_job(self, job_id):
         """Delete a job's info and metadata from the cluster."""

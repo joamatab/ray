@@ -62,8 +62,7 @@ logger = logging.getLogger(__name__)
 
 def make_gcs_client(address_info):
     address = address_info["gcs_address"]
-    gcs_client = ray._raylet.GcsClient(address=address)
-    return gcs_client
+    return ray._raylet.GcsClient(address=address)
 
 
 def cleanup_test_files():
@@ -99,7 +98,7 @@ def search_agent(processes):
 
 def check_agent_register(raylet_proc, agent_pid):
     # Check if agent register is OK.
-    for x in range(5):
+    for _ in range(5):
         logger.info("Check agent is alive.")
         agent_proc = search_agent(raylet_proc.children())
         assert agent_proc.pid == agent_pid
@@ -333,14 +332,14 @@ def test_http_get(enable_test_module, ray_start_with_dashboard):
     webui_url = ray_start_with_dashboard["webui_url"]
     webui_url = format_web_url(webui_url)
 
-    target_url = webui_url + "/test/dump"
+    target_url = f"{webui_url}/test/dump"
 
     timeout_seconds = 30
     start_time = time.time()
     while True:
         time.sleep(3)
         try:
-            response = requests.get(webui_url + "/test/http_get?url=" + target_url)
+            response = requests.get(f"{webui_url}/test/http_get?url={target_url}")
             response.raise_for_status()
             try:
                 dump_info = response.json()
@@ -539,8 +538,8 @@ def test_aiohttp_cache(enable_test_module, ray_start_with_dashboard):
     while True:
         time.sleep(1)
         try:
-            for x in range(10):
-                response = requests.get(webui_url + "/test/aiohttp_cache/t1?value=1")
+            for _ in range(10):
+                response = requests.get(f"{webui_url}/test/aiohttp_cache/t1?value=1")
                 response.raise_for_status()
                 timestamp = response.json()["data"]["timestamp"]
                 value1_timestamps.append(timestamp)
@@ -554,7 +553,7 @@ def test_aiohttp_cache(enable_test_module, ray_start_with_dashboard):
 
     sub_path_timestamps = []
     for x in range(10):
-        response = requests.get(webui_url + f"/test/aiohttp_cache/tt{x}?value=1")
+        response = requests.get(f"{webui_url}/test/aiohttp_cache/tt{x}?value=1")
         response.raise_for_status()
         timestamp = response.json()["data"]["timestamp"]
         sub_path_timestamps.append(timestamp)
@@ -562,13 +561,13 @@ def test_aiohttp_cache(enable_test_module, ray_start_with_dashboard):
 
     volatile_value_timestamps = []
     for x in range(10):
-        response = requests.get(webui_url + f"/test/aiohttp_cache/tt?value={x}")
+        response = requests.get(f"{webui_url}/test/aiohttp_cache/tt?value={x}")
         response.raise_for_status()
         timestamp = response.json()["data"]["timestamp"]
         volatile_value_timestamps.append(timestamp)
     assert len(collections.Counter(volatile_value_timestamps)) == 10
 
-    response = requests.get(webui_url + "/test/aiohttp_cache/raise_exception")
+    response = requests.get(f"{webui_url}/test/aiohttp_cache/raise_exception")
     with pytest.raises(Exception):
         response.raise_for_status()
     result = response.json()
@@ -577,7 +576,7 @@ def test_aiohttp_cache(enable_test_module, ray_start_with_dashboard):
 
     volatile_value_timestamps = []
     for x in range(10):
-        response = requests.get(webui_url + f"/test/aiohttp_cache_lru/tt{x % 4}")
+        response = requests.get(f"{webui_url}/test/aiohttp_cache_lru/tt{x % 4}")
         response.raise_for_status()
         timestamp = response.json()["data"]["timestamp"]
         volatile_value_timestamps.append(timestamp)
@@ -586,7 +585,7 @@ def test_aiohttp_cache(enable_test_module, ray_start_with_dashboard):
     volatile_value_timestamps = []
     data = collections.defaultdict(set)
     for x in [0, 1, 2, 3, 4, 5, 2, 1, 0, 3]:
-        response = requests.get(webui_url + f"/test/aiohttp_cache_lru/t1?value={x}")
+        response = requests.get(f"{webui_url}/test/aiohttp_cache_lru/t1?value={x}")
         response.raise_for_status()
         timestamp = response.json()["data"]["timestamp"]
         data[x].add(timestamp)
@@ -851,11 +850,10 @@ def test_dashboard_port_conflict(ray_start_with_dashboard):
     while True:
         time.sleep(1)
         try:
-            dashboard_url = ray.experimental.internal_kv._internal_kv_get(
+            if dashboard_url := ray.experimental.internal_kv._internal_kv_get(
                 ray_constants.DASHBOARD_ADDRESS,
                 namespace=ray_constants.KV_NAMESPACE_DASHBOARD,
-            )
-            if dashboard_url:
+            ):
                 new_port = int(dashboard_url.split(b":")[-1])
                 assert new_port > int(port)
                 break
@@ -929,7 +927,6 @@ def test_dashboard_does_not_depend_on_serve():
     except Exception as e:
         # Fail to connect to service is fine.
         print(e)
-        assert True
 
 
 @pytest.mark.skipif(
@@ -958,7 +955,7 @@ def test_agent_does_not_depend_on_serve(shutdown_only):
 
     logger.info("Agent works.")
 
-    agent_url = node.node_ip_address + ":" + str(node.dashboard_agent_listen_port)
+    agent_url = f"{node.node_ip_address}:{str(node.dashboard_agent_listen_port)}"
 
     # Check that Serve-dependent features fail
     try:
@@ -967,8 +964,6 @@ def test_agent_does_not_depend_on_serve(shutdown_only):
     except Exception as e:
         # Fail to connect to service is fine.
         print(e)
-        assert True
-
     # The agent should be dead if raylet exits.
     raylet_proc.kill()
     raylet_proc.wait()
@@ -986,7 +981,7 @@ def test_agent_port_conflict(shutdown_only):
     ray.init(include_dashboard=True)
 
     node = ray._private.worker._global_node
-    agent_url = node.node_ip_address + ":" + str(node.dashboard_agent_listen_port)
+    agent_url = f"{node.node_ip_address}:{str(node.dashboard_agent_listen_port)}"
     wait_for_condition(
         lambda: requests.get(f"http://{agent_url}/api/serve/deployments/").status_code
         == 200
@@ -1020,7 +1015,7 @@ def test_agent_port_conflict(shutdown_only):
     # Release the port from socket.
     s.close()
 
-    agent_url = node.node_ip_address + ":" + str(node.dashboard_agent_listen_port)
+    agent_url = f"{node.node_ip_address}:{str(node.dashboard_agent_listen_port)}"
 
     # Check that Serve-dependent features fail.
     try:

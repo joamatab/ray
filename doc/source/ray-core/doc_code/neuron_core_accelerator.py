@@ -11,14 +11,14 @@ ray.init(resources={"neuron_cores": 2})
 class NeuronCoreActor:
     def info(self):
         ids = ray.get_runtime_context().get_resource_ids()
-        print("neuron_core_ids: {}".format(ids["neuron_cores"]))
+        print(f'neuron_core_ids: {ids["neuron_cores"]}')
         print(f"NEURON_RT_VISIBLE_CORES: {os.environ['NEURON_RT_VISIBLE_CORES']}")
 
 
 @ray.remote(resources={"neuron_cores": 1}, accelerator_type=AWS_NEURON_CORE)
 def use_neuron_core_task():
     ids = ray.get_runtime_context().get_resource_ids()
-    print("neuron_core_ids: {}".format(ids["neuron_cores"]))
+    print(f'neuron_core_ids: {ids["neuron_cores"]}')
     print(f"NEURON_RT_VISIBLE_CORES: {os.environ['NEURON_RT_VISIBLE_CORES']}")
 
 

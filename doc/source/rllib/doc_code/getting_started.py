@@ -26,47 +26,6 @@ import ray
 
 ray.shutdown()
 
-if False:
-    # __rllib-tune-config-begin__
-    import ray
-    from ray import train, tune
-
-    ray.init()
-
-    config = PPOConfig().training(lr=tune.grid_search([0.01, 0.001, 0.0001]))
-
-    tuner = tune.Tuner(
-        "PPO",
-        run_config=train.RunConfig(
-            stop={"episode_reward_mean": 150},
-        ),
-        param_space=config,
-    )
-
-    tuner.fit()
-    # __rllib-tune-config-end__
-
-    # __rllib-tuner-begin__
-    # ``Tuner.fit()`` allows setting a custom log directory (other than ``~/ray-results``)
-    tuner = ray.tune.Tuner(
-        "PPO",
-        param_space=config,
-        run_config=train.RunConfig(
-            stop={"episode_reward_mean": 150},
-            checkpoint_config=train.CheckpointConfig(checkpoint_at_end=True),
-        ),
-    )
-
-    results = tuner.fit()
-
-    # Get the best result based on a particular metric.
-    best_result = results.get_best_result(metric="episode_reward_mean", mode="max")
-
-    # Get the best checkpoint corresponding to the best result.
-    best_checkpoint = best_result.checkpoint
-    # __rllib-tuner-end__
-
-
 # __rllib-compute-action-begin__
 # Note: `gymnasium` (not `gym`) will be **the** API supported by RLlib from Ray 2.3 on.
 try:

@@ -35,6 +35,6 @@ serve.run(entry)
 import requests  # noqa: E402
 
 resp = requests.get(
-    "http://localhost:8000", headers={"serve_multiplexed_model_id": str("1")}
+    "http://localhost:8000", headers={"serve_multiplexed_model_id": "1"}
 )
 # __serve_request_send_example_end__

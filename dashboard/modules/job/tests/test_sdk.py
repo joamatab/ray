@@ -150,10 +150,10 @@ def test_temporary_uri_reference(monkeypatch, expiration_s):
                 assert not check_internal_kv_gced()
                 wait_for_condition(check_internal_kv_gced, timeout=2 * expiration_s)
                 assert expiration_s < time.time() - start < 2 * expiration_s
-                print("Internal KV was GC'ed at time ", time.time() - start)
             else:
                 wait_for_condition(check_internal_kv_gced)
-                print("Internal KV was GC'ed at time ", time.time() - start)
+
+            print("Internal KV was GC'ed at time ", time.time() - start)
 
 
 @pytest.fixture
@@ -164,7 +164,7 @@ def mock_candidate_number():
 
 
 def get_register_agents_number(webui_url):
-    response = requests.get(webui_url + "/internal/node_module")
+    response = requests.get(f"{webui_url}/internal/node_module")
     response.raise_for_status()
     result = response.json()
     data = result["data"]
@@ -256,7 +256,7 @@ def test_job_head_choose_job_agent_E2E(ray_start_cluster_head_with_env_vars):
 
     def get_all_new_supervisor_actor_info(old_supervisor_actor):
         all_actors = ray.state.state.actor_table(None)
-        res = dict()
+        res = {}
         for actor_id, actor_info in all_actors.items():
             if actor_id in old_supervisor_actor:
                 continue

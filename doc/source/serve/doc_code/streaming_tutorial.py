@@ -302,11 +302,10 @@ class Batchbot:
         while True:
             try:
                 for token_batch in streamer:
-                    decoded_tokens = []
-                    for token in token_batch:
-                        decoded_tokens.append(
-                            self.tokenizer.decode(token, skip_special_tokens=True)
-                        )
+                    decoded_tokens = [
+                        self.tokenizer.decode(token, skip_special_tokens=True)
+                        for token in token_batch
+                    ]
                     logger.info(f"Yielding decoded tokens: {decoded_tokens}")
                     yield decoded_tokens
                 break
@@ -330,10 +329,7 @@ from concurrent.futures.thread import ThreadPoolExecutor
 
 def get_buffered_response(prompt) -> List[str]:
     response = requests.post(f"http://localhost:8000/?prompt={prompt}", stream=True)
-    chunks = []
-    for chunk in response.iter_content(chunk_size=None, decode_unicode=True):
-        chunks.append(chunk)
-    return chunks
+    return list(response.iter_content(chunk_size=None, decode_unicode=True))
 
 
 with ThreadPoolExecutor() as pool:

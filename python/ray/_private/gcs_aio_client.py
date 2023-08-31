@@ -39,10 +39,7 @@ class AsyncProxy:
         If attr is callable, wrap it into an async function.
         """
         attr = getattr(self.inner, name)
-        if callable(attr):
-            return self._function_to_async(attr)
-        else:
-            return attr
+        return self._function_to_async(attr) if callable(attr) else attr
 
 
 class GcsAioClient:

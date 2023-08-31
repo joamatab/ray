@@ -207,15 +207,15 @@ class DataOrganizer:
 
     @classmethod
     async def get_all_agent_infos(cls):
-        agent_infos = dict()
-        for node_id, (http_port, grpc_port) in DataSource.agents.items():
-            agent_infos[node_id] = dict(
+        return {
+            node_id: dict(
                 ipAddress=DataSource.node_id_to_ip[node_id],
                 httpPort=int(http_port or -1),
                 grpcPort=int(grpc_port or -1),
                 httpAddress=f"{DataSource.node_id_to_ip[node_id]}:{http_port}",
             )
-        return agent_infos
+            for node_id, (http_port, grpc_port) in DataSource.agents.items()
+        }
 
     @classmethod
     async def get_all_actors(cls):
@@ -243,7 +243,7 @@ class DataOrganizer:
             "actorTitle", "Unknown actor constructor"
         )
         actor["actorConstructor"] = actor_constructor
-        actor.update(core_worker_stats)
+        actor |= core_worker_stats
 
         # TODO(fyrestone): remove this, give a link from actor
         # info to worker info in front-end.

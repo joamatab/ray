@@ -75,7 +75,7 @@ def test_log(disable_aiohttp_cache, ray_start_with_dashboard):
     while True:
         time.sleep(1)
         try:
-            response = requests.get(webui_url + "/log_index")
+            response = requests.get(f"{webui_url}/log_index")
             response.raise_for_status()
             parser = LogUrlParser()
             parser.feed(response.text)
@@ -105,13 +105,13 @@ def test_log(disable_aiohttp_cache, ray_start_with_dashboard):
 
             # Test range request.
             response = requests.get(
-                webui_url + f"/logs/{test_file}", headers={"Range": "bytes=2-5"}
+                f"{webui_url}/logs/{test_file}", headers={"Range": "bytes=2-5"}
             )
             response.raise_for_status()
             assert response.text == test_log_text[2:6]
 
             # Test logUrl in node info.
-            response = requests.get(webui_url + f"/nodes/{node_id}")
+            response = requests.get(f"{webui_url}/nodes/{node_id}")
             response.raise_for_status()
             node_info = response.json()
             assert node_info["result"] is True
@@ -152,7 +152,7 @@ def test_log_proxy(ray_start_with_dashboard, test_file, content_kind):
     if content_kind == "text/plain":
         data = bytearray("test_log_text", encoding="utf-8")
     else:
-        data = bytearray(i for i in range(256))
+        data = bytearray(iter(range(256)))
 
     # Prep the files
     with open(
@@ -209,7 +209,7 @@ def test_log_index_texts(disable_aiohttp_cache, ray_start_cluster):
     # Check nodes ready
     def _check_two_nodes_ready():
         try:
-            response = requests.get(webui_url + "/nodes?view=summary")
+            response = requests.get(f"{webui_url}/nodes?view=summary")
             response.raise_for_status
             result = response.json()
             nodes = result["data"]["summary"]
@@ -221,7 +221,7 @@ def test_log_index_texts(disable_aiohttp_cache, ray_start_cluster):
     wait_for_condition(_check_two_nodes_ready)
 
     def _get_node_id_ip_pairs():
-        result = requests.get(webui_url + "/nodes?view=summary").json()
+        result = requests.get(f"{webui_url}/nodes?view=summary").json()
         nodes = result["data"]["summary"]
         node_id_ip_pairs = []
         for node in nodes:
@@ -237,7 +237,7 @@ def test_log_index_texts(disable_aiohttp_cache, ray_start_cluster):
 
     # Check log index format
     def check_log_index_format():
-        response = requests.get(webui_url + "/log_index")
+        response = requests.get(f"{webui_url}/log_index")
         response.raise_for_status()
         text = response.text
         parser = LogUrlParser()

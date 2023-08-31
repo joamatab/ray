@@ -93,17 +93,16 @@ class LogHead(dashboard_utils.DashboardHeadModule):
         index_of = "Index of logs"
         h1 = f"<h1>{index_of}</h1>"
 
-        index_list = []
-        for text, log_url in index_text_log_url:
-            index_list.append(f'<li><a href="{log_url}">{text}</a></li>')
+        index_list = [
+            f'<li><a href="{log_url}">{text}</a></li>'
+            for text, log_url in index_text_log_url
+        ]
         index_list = "\n".join(index_list)
         ul = f"<ul>\n{index_list}\n</ul>"
         body = f"<body>\n{h1}\n{ul}\n</body>"
 
         head_str = f"<head>\n<title>{index_of}</title>\n</head>"
-        html = f"<html>\n{head_str}\n{body}\n</html>"
-
-        return html
+        return f"<html>\n{head_str}\n{body}\n</html>"
 
     async def run(self, server):
         pass

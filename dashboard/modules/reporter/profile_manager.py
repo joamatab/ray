@@ -86,10 +86,7 @@ class CpuProfilingManager:
     async def cpu_profile(
         self, pid: int, format="flamegraph", duration: float = 5, native: bool = False
     ) -> (bool, str):
-        if format == "flamegraph":
-            extension = "svg"
-        else:
-            extension = "txt"
+        extension = "svg" if format == "flamegraph" else "txt"
         profile_file_path = (
             self.profile_dir_path / f"{format}_{pid}_cpu_profiling.{extension}"
         )

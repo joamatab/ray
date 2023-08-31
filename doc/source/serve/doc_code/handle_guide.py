@@ -46,10 +46,7 @@ class DynamicDispatcher:
         submission_task: asyncio.Task = handle_chosen.remote()
         # The request is assigned to a replica.
         ref: ray.ObjectRef = await submission_task
-        # The request has been processed by the replica.
-        result = await ref
-
-        return result
+        return await ref
 
 
 handle: RayServeSyncHandle = serve.run(
@@ -70,7 +67,7 @@ from ray.serve.handle import RayServeHandle, RayServeSyncHandle
 @serve.deployment
 class Model:
     def __call__(self, inp):
-        return "hello " + inp
+        return f"hello {inp}"
 
 
 @serve.deployment

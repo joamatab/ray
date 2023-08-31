@@ -19,8 +19,7 @@ class APIIngress:
     @app.get("/classify")
     async def classify(self, sentence: str):
         predict_ref = await self.handle.classify.remote(sentence)
-        predict_result = await predict_ref
-        return predict_result
+        return await predict_ref
 
 
 @serve.deployment(

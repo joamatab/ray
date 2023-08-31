@@ -32,7 +32,7 @@ def perform_check(raw_xml_string: str):
             tags = [child.attrib["value"] for child in lst.getchildren()]
             break
         team_owner = [t for t in tags if t.startswith("team:")]
-        if len(team_owner) == 0:
+        if not team_owner:
             missing_owners.append(test_name)
         owners[test_name] = team_owner
 

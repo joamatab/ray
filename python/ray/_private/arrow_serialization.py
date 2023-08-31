@@ -178,11 +178,10 @@ def _reconstruct_table(
     """Restore a serialized Arrow Table, reconstructing each reduced column."""
     import pyarrow as pa
 
-    # Reconstruct each reduced column.
-    columns = []
-    for chunks_payload, type_ in reduced_columns:
-        columns.append(_reconstruct_chunked_array(chunks_payload, type_))
-
+    columns = [
+        _reconstruct_chunked_array(chunks_payload, type_)
+        for chunks_payload, type_ in reduced_columns
+    ]
     return pa.Table.from_arrays(columns, schema=schema)
 
 
@@ -235,7 +234,7 @@ class PicklableArrayPayload:
     children: List["PicklableArrayPayload"]
 
     @classmethod
-    def from_array(self, a: "pyarrow.Array") -> "PicklableArrayPayload":
+    def from_array(cls, a: "pyarrow.Array") -> "PicklableArrayPayload":
         """Create a picklable array payload from an Arrow Array.
 
         This will recursively accumulate data buffer and metadata payloads that are
@@ -270,8 +269,8 @@ def _array_payload_to_array(payload: "PicklableArrayPayload") -> "pyarrow.Array"
         assert len(children) == 3, len(children)
         offsets, keys, items = children
         return pa.MapArray.from_arrays(offsets, keys, items)
-    elif isinstance(payload.type, ArrowTensorType) or isinstance(
-        payload.type, ArrowVariableShapedTensorType
+    elif isinstance(
+        payload.type, (ArrowTensorType, ArrowVariableShapedTensorType)
     ):
         # Dedicated path for reconstructing an ArrowTensorArray or
         # ArrowVariableShapedTensorArray, both of which can't be reconstructed by the
@@ -331,9 +330,7 @@ def _array_to_array_payload(a: "pyarrow.Array") -> "PicklableArrayPayload":
         return _dictionary_array_to_array_payload(a)
     elif pa.types.is_map(a.type):
         return _map_array_to_array_payload(a)
-    elif isinstance(a.type, ArrowTensorType) or isinstance(
-        a.type, ArrowVariableShapedTensorType
-    ):
+    elif isinstance(a.type, (ArrowTensorType, ArrowVariableShapedTensorType)):
         return _tensor_array_to_array_payload(a)
     else:
         raise ValueError("Unhandled Arrow array type:", a.type)
@@ -700,8 +697,7 @@ def _copy_bitpacked_buffer_if_needed(
     length: int,
 ) -> "pyarrow.Buffer":
     """Copy bit-packed binary buffer, if needed."""
-    bit_offset = offset % 8
-    byte_offset = offset // 8
+    byte_offset, bit_offset = divmod(offset, 8)
     byte_length = _bytes_for_bits(bit_offset + length) // 8
     if offset > 0 or byte_length < buf.size:
         buf = buf.slice(byte_offset, byte_length)

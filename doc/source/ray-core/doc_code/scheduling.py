@@ -113,7 +113,7 @@ consume_func.remote(large_object)
 # instead of only running on the node where large_object_func runs.
 [
     consume_func.options(scheduling_strategy="SPREAD").remote(large_object)
-    for i in range(10)
+    for _ in range(10)
 ]
 
 # Ray won't consider locality for scheduling consume_func

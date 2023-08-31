@@ -96,8 +96,6 @@ def test_error_message():
                 **unsupported_submit_kwargs,
             )
 
-    assert True
-
 
 if __name__ == "__main__":
     sys.exit(pytest.main(["-v", __file__]))

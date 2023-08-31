@@ -162,7 +162,6 @@ def parse_cluster_info(
 
     if module_string == "ray":
         raise ValueError(f"Internal error: unexpected Ray Client address {address}.")
-    # If user passes http(s)://, go through normal parsing.
     if module_string in {"http", "https"}:
         return get_job_submission_client_cluster_info(
             inner_address,
@@ -172,28 +171,26 @@ def parse_cluster_info(
             headers=headers,
             _use_tls=(module_string == "https"),
         )
-    # Try to dynamically import the function to get cluster info.
-    else:
-        try:
-            module = importlib.import_module(module_string)
-        except Exception:
-            raise RuntimeError(
-                f"Module: {module_string} does not exist.\n"
-                f"This module was parsed from address: {address}"
-            ) from None
-        assert "get_job_submission_client_cluster_info" in dir(module), (
-            f"Module: {module_string} does "
-            "not have `get_job_submission_client_cluster_info`.\n"
+    try:
+        module = importlib.import_module(module_string)
+    except Exception:
+        raise RuntimeError(
+            f"Module: {module_string} does not exist.\n"
             f"This module was parsed from address: {address}"
-        )
+        ) from None
+    assert "get_job_submission_client_cluster_info" in dir(module), (
+        f"Module: {module_string} does "
+        "not have `get_job_submission_client_cluster_info`.\n"
+        f"This module was parsed from address: {address}"
+    )
 
-        return module.get_job_submission_client_cluster_info(
-            inner_address,
-            create_cluster_if_needed=create_cluster_if_needed,
-            cookies=cookies,
-            metadata=metadata,
-            headers=headers,
-        )
+    return module.get_job_submission_client_cluster_info(
+        inner_address,
+        create_cluster_if_needed=create_cluster_if_needed,
+        cookies=cookies,
+        metadata=metadata,
+        headers=headers,
+    )
 
 
 class SubmissionClient:
@@ -237,10 +234,7 @@ class SubmissionClient:
                 )
             self._ssl_context = ssl.create_default_context(cafile=cafile, capath=capath)
         else:
-            if self._verify is False:
-                self._ssl_context = False
-            else:
-                self._ssl_context = None
+            self._ssl_context = False if self._verify is False else None
 
     def _check_connection_and_version(
         self, min_version: str = "1.9", version_error_message: str = None
@@ -261,9 +255,7 @@ class SubmissionClient:
         try:
             r = self._do_request("GET", url)
             if r.status_code == 404:
-                raise RuntimeError(
-                    "Version check returned 404. " + version_error_message
-                )
+                raise RuntimeError(f"Version check returned 404. {version_error_message}")
             r.raise_for_status()
 
             running_ray_version = r.json()["ray_version"]

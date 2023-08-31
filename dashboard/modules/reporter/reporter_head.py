@@ -161,13 +161,11 @@ class ReportHead(dashboard_utils.DashboardHeadModule):
         tasks_in_a_worker_result = await self._state_api.list_tasks(option=option)
         tasks_in_a_worker = tasks_in_a_worker_result.result
 
-        # Get task_id from each task in a worker
-        task_ids_in_a_worker = [
+        return [
             task.get("task_id")
             for task in tasks_in_a_worker
             if task and "task_id" in task
         ]
-        return task_ids_in_a_worker
 
     async def get_worker_details_for_running_task(
         self, task_id: str, attempt_number: int
@@ -204,16 +202,14 @@ class ReportHead(dashboard_utils.DashboardHeadModule):
         if not tasks:
             return None, None
 
-        pid = tasks[0]["worker_pid"]
-        worker_id = tasks[0]["worker_id"]
-
         state = tasks[0]["state"]
         if state != "RUNNING":
             raise ValueError(
                 f"The task attempt is not running: the current state is {state}."
             )
 
-        return pid, worker_id
+        pid = tasks[0]["worker_pid"]
+        return pid, tasks[0]["worker_id"]
 
     @routes.get("/task/traceback")
     async def get_task_traceback(self, req) -> aiohttp.web.Response:
@@ -265,11 +261,7 @@ class ReportHead(dashboard_utils.DashboardHeadModule):
         except ValueError as e:
             raise aiohttp.web.HTTPInternalServerError(text=str(e))
 
-        logger.info(
-            "Sending stack trace request to {}:{} with native={}".format(
-                ip, pid, native
-            )
-        )
+        logger.info(f"Sending stack trace request to {ip}:{pid} with native={native}")
         reply = await reporter_stub.GetTraceback(
             reporter_pb2.GetTracebackRequest(pid=pid, native=native)
         )
@@ -294,7 +286,7 @@ class ReportHead(dashboard_utils.DashboardHeadModule):
         if not reply.success:
             return aiohttp.web.HTTPInternalServerError(text=reply.output)
 
-        logger.info("Returning stack trace, size {}".format(len(reply.output)))
+        logger.info(f"Returning stack trace, size {len(reply.output)}")
 
         task_ids_in_a_worker = await self.get_task_ids_running_in_a_worker(worker_id)
         return aiohttp.web.Response(
@@ -362,9 +354,7 @@ class ReportHead(dashboard_utils.DashboardHeadModule):
             raise aiohttp.web.HTTPInternalServerError(text=str(e))
 
         logger.info(
-            "Sending CPU profiling request to {}:{} for {} with native={}".format(
-                ip, pid, task_id, native
-            )
+            f"Sending CPU profiling request to {ip}:{pid} for {task_id} with native={native}"
         )
 
         reply = await reporter_stub.CpuProfiling(
@@ -392,16 +382,11 @@ class ReportHead(dashboard_utils.DashboardHeadModule):
 
         if not reply.success:
             return aiohttp.web.HTTPInternalServerError(text=reply.output)
-        logger.info("Returning profiling response, size {}".format(len(reply.output)))
+        logger.info(f"Returning profiling response, size {len(reply.output)}")
 
         task_ids_in_a_worker = await self.get_task_ids_running_in_a_worker(worker_id)
         return aiohttp.web.Response(
-            body='<p style="color: #E37400;">{} {} </br> </p> </br>'.format(
-                EMOJI_WARNING,
-                WARNING_FOR_MULTI_TASK_IN_A_WORKER + str(task_ids_in_a_worker),
-            )
-            + SVG_STYLE
-            + (reply.output)
+            body=f'<p style="color: #E37400;">{EMOJI_WARNING} {WARNING_FOR_MULTI_TASK_IN_A_WORKER + str(task_ids_in_a_worker)} </br> </p> </br>{SVG_STYLE}{reply.output}'
             if len(task_ids_in_a_worker) > 1
             else SVG_STYLE + reply.output,
             headers={"Content-Type": "text/html"},
@@ -417,18 +402,15 @@ class ReportHead(dashboard_utils.DashboardHeadModule):
         # Default not using `--native` for profiling
         native = req.query.get("native", False) == "1"
         logger.info(
-            "Sending stack trace request to {}:{} with native={}".format(
-                req.query.get("ip"), pid, native
-            )
+            f'Sending stack trace request to {req.query.get("ip")}:{pid} with native={native}'
         )
         reply = await reporter_stub.GetTraceback(
             reporter_pb2.GetTracebackRequest(pid=pid, native=native)
         )
-        if reply.success:
-            logger.info("Returning stack trace, size {}".format(len(reply.output)))
-            return aiohttp.web.Response(text=reply.output)
-        else:
+        if not reply.success:
             return aiohttp.web.HTTPInternalServerError(text=reply.output)
+        logger.info(f"Returning stack trace, size {len(reply.output)}")
+        return aiohttp.web.Response(text=reply.output)
 
     @routes.get("/worker/cpu_profile")
     async def cpu_profile(self, req) -> aiohttp.web.Response:
@@ -445,29 +427,24 @@ class ReportHead(dashboard_utils.DashboardHeadModule):
         # Default not using `--native` for profiling
         native = req.query.get("native", False) == "1"
         logger.info(
-            "Sending CPU profiling request to {}:{} with native={}".format(
-                req.query.get("ip"), pid, native
-            )
+            f'Sending CPU profiling request to {req.query.get("ip")}:{pid} with native={native}'
         )
         reply = await reporter_stub.CpuProfiling(
             reporter_pb2.CpuProfilingRequest(
                 pid=pid, duration=duration, format=format, native=native
             )
         )
-        if reply.success:
-            logger.info(
-                "Returning profiling response, size {}".format(len(reply.output))
-            )
-            return aiohttp.web.Response(
-                body=reply.output,
-                headers={
-                    "Content-Type": "image/svg+xml"
-                    if format == "flamegraph"
-                    else "text/plain"
-                },
-            )
-        else:
+        if not reply.success:
             return aiohttp.web.HTTPInternalServerError(text=reply.output)
+        logger.info(f"Returning profiling response, size {len(reply.output)}")
+        return aiohttp.web.Response(
+            body=reply.output,
+            headers={
+                "Content-Type": "image/svg+xml"
+                if format == "flamegraph"
+                else "text/plain"
+            },
+        )
 
     async def run(self, server):
         gcs_channel = self._dashboard_head.aiogrpc_gcs_channel

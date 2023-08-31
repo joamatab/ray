@@ -41,14 +41,12 @@ class RayError(Exception):
 
     @staticmethod
     def from_ray_exception(ray_exception):
-        if ray_exception.language == PYTHON:
-            try:
-                return pickle.loads(ray_exception.serialized_exception)
-            except Exception as e:
-                msg = "Failed to unpickle serialized exception"
-                raise RuntimeError(msg) from e
-        else:
+        if ray_exception.language != PYTHON:
             return CrossLanguageError(ray_exception)
+        try:
+            return pickle.loads(ray_exception.serialized_exception)
+        except Exception as e:
+            raise RuntimeError("Failed to unpickle serialized exception") from e
 
 
 @PublicAPI
@@ -57,10 +55,7 @@ class CrossLanguageError(RayError):
 
     def __init__(self, ray_exception):
         super().__init__(
-            "An exception raised from {}:\n{}".format(
-                Language.Name(ray_exception.language),
-                ray_exception.formatted_exception_string,
-            )
+            f"An exception raised from {Language.Name(ray_exception.language)}:\n{ray_exception.formatted_exception_string}"
         )
 
 
@@ -80,9 +75,7 @@ class TaskCancelledError(RayError):
         self.error_message = error_message
 
     def __str__(self):
-        msg = ""
-        if self.task_id:
-            msg = "Task: " + str(self.task_id) + " was cancelled. "
+        msg = f"Task: {str(self.task_id)} was cancelled. " if self.task_id else ""
         if self.error_message:
             msg += self.error_message
         return msg
@@ -117,10 +110,7 @@ class RayTaskError(RayError):
         # a tuple with the type and the value of self.args.
         # https://stackoverflow.com/a/49715949/2213289
         self.args = (function_name, traceback_str, cause, proctitle, pid, ip)
-        if proctitle:
-            self.proctitle = proctitle
-        else:
-            self.proctitle = setproctitle.getproctitle()
+        self.proctitle = proctitle if proctitle else setproctitle.getproctitle()
         self.pid = pid or os.getpid()
         self.ip = ip or ray.util.get_node_ip_address()
         self.function_name = function_name
@@ -294,9 +284,11 @@ class RayActorError(RayError):
         else:
             # Inidicating system-level actor failures.
             assert isinstance(cause, ActorDiedErrorContext)
-            error_msg_lines = [self.base_error_msg]
-            error_msg_lines.append(f"\tclass_name: {cause.class_name}")
-            error_msg_lines.append(f"\tactor_id: {ActorID(cause.actor_id).hex()}")
+            error_msg_lines = [
+                self.base_error_msg,
+                f"\tclass_name: {cause.class_name}",
+                f"\tactor_id: {ActorID(cause.actor_id).hex()}",
+            ]
             # Below items are optional fields.
             if cause.pid != 0:
                 error_msg_lines.append(f"\tpid: {cause.pid}")

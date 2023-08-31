@@ -113,10 +113,7 @@ class DashboardHead:
                 minimal flags.
         """
         self.minimal = minimal
-        self.serve_frontend = serve_frontend
-        # If it is the minimal mode, we shouldn't serve frontend.
-        if self.minimal:
-            self.serve_frontend = False
+        self.serve_frontend = False if self.minimal else serve_frontend
         self.health_check_thread: GCSHealthCheckThread = None
         self._gcs_rpc_error_counter = 0
         # Public attributes are accessible for all head modules.
@@ -231,10 +228,9 @@ class DashboardHead:
         # Verify modules are loaded as expected.
         loaded_modules = {type(m).__name__ for m in modules}
         if loaded_modules != modules_to_load:
-            assert False, (
-                "Actual loaded modules, {}, doesn't match the requested modules "
-                "to load, {}".format(loaded_modules, modules_to_load)
-            )
+            assert (
+                False
+            ), f"Actual loaded modules, {loaded_modules}, doesn't match the requested modules to load, {modules_to_load}"
 
         logger.info("Loaded %d modules. %s", len(modules), modules)
         return modules
@@ -252,9 +248,7 @@ class DashboardHead:
         if prometheus_client:
             try:
                 logger.info(
-                    "Starting dashboard metrics server on port {}".format(
-                        DASHBOARD_METRIC_PORT
-                    )
+                    f"Starting dashboard metrics server on port {DASHBOARD_METRIC_PORT}"
                 )
                 kwargs = {"addr": "127.0.0.1"} if self.ip == "127.0.0.1" else {}
                 prometheus_client.start_http_server(
@@ -266,7 +260,7 @@ class DashboardHead:
                 logger.exception(
                     "An exception occurred while starting the metrics server."
                 )
-        elif not prometheus_client:
+        else:
             logger.warning(
                 "`prometheus_client` not found, so metrics will not be exported."
             )

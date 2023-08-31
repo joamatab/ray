@@ -236,7 +236,7 @@ def test_nil_node(enable_test_module, disable_aiohttp_cache, ray_start_with_dash
             resp_data = resp_json["data"]
             actors = resp_data["actors"]
             assert len(actors) == 1
-            response = requests.get(webui_url + "/test/dump?key=node_actors")
+            response = requests.get(f"{webui_url}/test/dump?key=node_actors")
             response.raise_for_status()
             result = response.json()
             assert actor_consts.NIL_NODE_ID not in result["data"]["nodeActors"]

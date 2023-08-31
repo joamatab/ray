@@ -69,28 +69,25 @@ class AutoscalingCluster:
         _, fake_config = tempfile.mkstemp()
         with open(fake_config, "w") as f:
             f.write(json.dumps(self._config))
-        cmd = [
-            "ray",
-            "start",
-            "--autoscaling-config={}".format(fake_config),
-            "--head",
-        ]
+        cmd = ["ray", "start", f"--autoscaling-config={fake_config}", "--head"]
         if "CPU" in self._head_resources:
-            cmd.append("--num-cpus={}".format(self._head_resources.pop("CPU")))
+            cmd.append(f'--num-cpus={self._head_resources.pop("CPU")}')
         if "GPU" in self._head_resources:
-            cmd.append("--num-gpus={}".format(self._head_resources.pop("GPU")))
+            cmd.append(f'--num-gpus={self._head_resources.pop("GPU")}')
         if self._head_resources:
-            cmd.append("--resources='{}'".format(json.dumps(self._head_resources)))
+            cmd.append(f"--resources='{json.dumps(self._head_resources)}'")
         if _system_config is not None:
             cmd.append(
                 "--system-config={}".format(
                     json.dumps(_system_config, separators=(",", ":"))
                 )
             )
-        env = os.environ.copy()
-        env.update({"AUTOSCALER_UPDATE_INTERVAL_S": "1", "RAY_FAKE_CLUSTER": "1"})
+        env = os.environ | {
+            "AUTOSCALER_UPDATE_INTERVAL_S": "1",
+            "RAY_FAKE_CLUSTER": "1",
+        }
         if override_env:
-            env.update(override_env)
+            env |= override_env
         subprocess.check_call(cmd, env=env)
 
     def shutdown(self):
@@ -144,9 +141,7 @@ class Cluster:
 
     @property
     def gcs_address(self):
-        if self.head_node is None:
-            return None
-        return self.head_node.gcs_address
+        return None if self.head_node is None else self.head_node.gcs_address
 
     @property
     def address(self):

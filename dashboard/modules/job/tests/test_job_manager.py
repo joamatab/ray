@@ -354,7 +354,7 @@ def test_generate_job_id():
 # submission history of the shared Ray runtime to be empty.
 @pytest.mark.asyncio
 async def test_list_jobs_empty(job_manager: JobManager):
-    assert await job_manager.list_jobs() == dict()
+    assert await job_manager.list_jobs() == {}
 
 
 @pytest.mark.asyncio
@@ -510,7 +510,7 @@ class TestShellScriptExecution:
             )
             job_id = await job_manager.submit_job(
                 entrypoint="python script.py",
-                runtime_env={"working_dir": "file://" + filename},
+                runtime_env={"working_dir": f"file://{filename}"},
             )
             await async_wait_for_condition_async_predicate(
                 check_job_succeeded, job_manager=job_manager, job_id=job_id
@@ -713,7 +713,7 @@ class TestRuntimeEnv:
         run_cmd = f"python {_driver_script_path('check_cuda_devices.py')}"
         runtime_env = {"env_vars": env_vars}
         if resource_kwarg:
-            run_cmd = "RAY_TEST_RESOURCES_SPECIFIED=1 " + run_cmd
+            run_cmd = f"RAY_TEST_RESOURCES_SPECIFIED=1 {run_cmd}"
         job_id = await job_manager.submit_job(
             entrypoint=run_cmd,
             runtime_env=runtime_env,
@@ -944,7 +944,7 @@ class TestTailLogs:
 
             async for lines in job_manager.tail_job_logs(job_id):
                 assert all(
-                    s == "Waiting..." or s == "Terminated"
+                    s in ["Waiting...", "Terminated"]
                     for s in lines.strip().split("\n")
                 )
                 print(lines, end="")

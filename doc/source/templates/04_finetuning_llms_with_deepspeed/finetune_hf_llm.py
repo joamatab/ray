@@ -143,10 +143,7 @@ def checkpoint_model(
     checkpoint_state_dict = {
         "epoch": epoch,
         "last_global_step": last_global_step,
-    }
-    # Add extra kwargs too
-    checkpoint_state_dict.update(kwargs)
-
+    } | kwargs
     # In here model will be a DeepspeedEngine object
     model.save_checkpoint(checkpoint_folder, ckpt_id, checkpoint_state_dict)
     status_msg = (
@@ -539,9 +536,7 @@ def parse_args():
         default="./deepspeed_configs/zero_3_llama_2_7b.json",
         help="Deepspeed config json to use.",
     )
-    args = parser.parse_args()
-
-    return args
+    return parser.parse_args()
 
 
 def main():

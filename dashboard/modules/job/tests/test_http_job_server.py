@@ -717,9 +717,12 @@ async def test_job_head_choose_job_agent():
 
         from ray.dashboard.datacenter import DataSource
 
+
+
         class MockJobHead(JobHead):
             def __init__(self):
-                self._agents = dict()
+                self._agents = {}
+
 
         DataSource.agents = {}
         DataSource.node_id_to_ip = {}

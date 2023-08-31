@@ -172,10 +172,7 @@ class StateHead(dashboard_utils.DashboardHeadModule, RateLimitedModule):
         filter_predicates = req.query.getall("filter_predicates", [])
         filter_values = req.query.getall("filter_values", [])
         assert len(filter_keys) == len(filter_values)
-        filters = []
-        for key, predicate, val in zip(filter_keys, filter_predicates, filter_values):
-            filters.append((key, predicate, val))
-        return filters
+        return list(zip(filter_keys, filter_predicates, filter_values))
 
     def _options_from_req(self, req: aiohttp.web.Request) -> ListApiOptions:
         """Obtain `ListApiOptions` from the aiohttp request."""

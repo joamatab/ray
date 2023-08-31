@@ -220,12 +220,10 @@ def train_fn(config):
             print(f"Stopping training after reaching {global_step} steps...")
             break
 
-        for _, batch in enumerate(
-            train_dataset.iter_torch_batches(
+        for batch in train_dataset.iter_torch_batches(
                 batch_size=config["train_batch_size"],
                 device=train.torch.get_device(),
-            )
-        ):
+            ):
             batch = collate(batch, torch.bfloat16)
 
             optimizer.zero_grad()

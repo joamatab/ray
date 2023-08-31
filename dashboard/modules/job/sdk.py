@@ -73,8 +73,8 @@ class JobSubmissionClient(SubmissionClient):
         headers: Optional[Dict[str, Any]] = None,
         verify: Optional[Union[str, bool]] = True,
     ):
-        self._client_ray_version = ray.__version__
         """Initialize a JobSubmissionClient and check the connection to the cluster."""
+        self._client_ray_version = ray.__version__
         if requests is None:
             raise RuntimeError(
                 "The Ray jobs CLI & SDK require the ray[default] "
@@ -94,7 +94,7 @@ class JobSubmissionClient(SubmissionClient):
             raise TypeError(f"metadata must be a dict, got {type(metadata)}")
         if headers is not None and not isinstance(headers, dict):
             raise TypeError(f"headers must be a dict, got {type(headers)}")
-        if not (isinstance(verify, str) or isinstance(verify, bool)):
+        if not isinstance(verify, (str, bool)):
             raise TypeError(f"verify must be a str or bool, got {type(verify)}")
 
         api_server_url = get_address_for_submission_client(address)
@@ -369,10 +369,9 @@ class JobSubmissionClient(SubmissionClient):
 
         if r.status_code == 200:
             jobs_info_json = r.json()
-            jobs_info = [
+            return [
                 JobDetails(**job_info_json) for job_info_json in jobs_info_json
             ]
-            return jobs_info
         else:
             self._raise_error(r)
 
@@ -456,8 +455,8 @@ class JobSubmissionClient(SubmissionClient):
                 job server fails.
         """
         async with aiohttp.ClientSession(
-            cookies=self._cookies, headers=self._headers
-        ) as session:
+                cookies=self._cookies, headers=self._headers
+            ) as session:
             ws = await session.ws_connect(
                 f"{self._address}/api/jobs/{job_id}/logs/tail", ssl=self._ssl_context
             )
@@ -469,5 +468,3 @@ class JobSubmissionClient(SubmissionClient):
                     yield msg.data
                 elif msg.type == aiohttp.WSMsgType.CLOSED:
                     break
-                elif msg.type == aiohttp.WSMsgType.ERROR:
-                    pass

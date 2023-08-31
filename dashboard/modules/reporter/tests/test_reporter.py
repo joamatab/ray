@@ -128,7 +128,7 @@ def test_node_physical_stats(enable_test_module, shutdown_only):
 
     def _check_workers():
         try:
-            resp = requests.get(webui_url + "/test/dump?key=node_physical_stats")
+            resp = requests.get(f"{webui_url}/test/dump?key=node_physical_stats")
             resp.raise_for_status()
             result = resp.json()
             assert result["result"] is True
@@ -185,7 +185,7 @@ def test_prometheus_physical_stats_record(enable_test_module, shutdown_only):
             "ray_node_network_send_speed" in metric_names,
             "ray_node_network_receive_speed" in metric_names,
         ]
-        if sys.platform == "linux" or sys.platform == "linux2":
+        if sys.platform in ["linux", "linux2"]:
             predicates.append("ray_node_mem_shared_bytes" in metric_names)
         return all(predicates)
 
@@ -261,8 +261,8 @@ def test_report_stats():
     records = agent._record_stats(STATS_TEMPLATE, cluster_stats)
     for record in records:
         name = record.gauge.name
-        val = record.value
         if name == "node_mem_shared_bytes":
+            val = record.value
             assert val == STATS_TEMPLATE["shm"]
         print(record.gauge.name)
         print(record)
@@ -389,11 +389,9 @@ def test_report_stats_gpu():
         "node_gram_available": 0,
     }
     records = agent._record_stats(STATS_TEMPLATE, {})
-    # If index is not available, we don't emit metrics.
-    num_gpu_records = 0
-    for record in records:
-        if record.gauge.name in gpu_metrics_aggregatd:
-            num_gpu_records += 1
+    num_gpu_records = sum(
+        1 for record in records if record.gauge.name in gpu_metrics_aggregatd
+    )
     assert num_gpu_records == 16
 
     ip = STATS_TEMPLATE["ip"]
@@ -404,8 +402,7 @@ def test_report_stats_gpu():
 
     for name, records in gpu_records.items():
         records.sort(key=lambda e: e.tags["GpuIndex"])
-        index = 0
-        for record in records:
+        for index, record in enumerate(records):
             if record.tags["GpuIndex"] == "3":
                 assert record.tags == {"ip": ip, "GpuIndex": "3"}
             else:
@@ -416,16 +413,14 @@ def test_report_stats_gpu():
                     "GpuDeviceName": "NVIDIA A10G",
                 }
 
-            if name == "node_gram_available":
-                assert record.value == GPU_MEMORY - index
-            elif name == "node_gpus_available":
+            if name == "node_gpus_available":
                 assert record.value == 1
+            elif name == "node_gram_available":
+                assert record.value == GPU_MEMORY - index
             else:
                 assert record.value == index
 
             gpu_metrics_aggregatd[name] += record.value
-            index += 1
-
     assert gpu_metrics_aggregatd["node_gpus_available"] == 4
     assert gpu_metrics_aggregatd["node_gpus_utilization"] == 6
     assert gpu_metrics_aggregatd["node_gram_used"] == 6
@@ -654,7 +649,7 @@ def test_reporter_worker_cpu_percent():
         children_pids = {p.pid for p in children}
         workers = ReporterAgent._get_workers(obj)
         # In the first run, the percent should be 0.
-        assert all([worker["cpu_percent"] == 0.0 for worker in workers])
+        assert all(worker["cpu_percent"] == 0.0 for worker in workers)
         for _ in range(10):
             time.sleep(0.1)
             workers = ReporterAgent._get_workers(obj)

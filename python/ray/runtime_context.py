@@ -214,11 +214,7 @@ class RuntimeContext(object):
 
     def _get_current_task_id(self) -> TaskID:
         async_task_id = ray._raylet.async_task_id.get()
-        if async_task_id is None:
-            task_id = self.worker.current_task_id
-        else:
-            task_id = async_task_id
-        return task_id
+        return self.worker.current_task_id if async_task_id is None else async_task_id
 
     @property
     @Deprecated(message="Use get_actor_id() instead", warning=True)

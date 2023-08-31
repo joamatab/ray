@@ -73,15 +73,9 @@ def recursive_asdict(o):
         return recursive_asdict(o._asdict())
 
     if isinstance(o, (tuple, list)):
-        L = []
-        for k in o:
-            L.append(recursive_asdict(k))
-        return L
-
+        return [recursive_asdict(k) for k in o]
     if isinstance(o, dict):
-        D = {k: recursive_asdict(v) for k, v in o.items()}
-        return D
-
+        return {k: recursive_asdict(v) for k, v in o.items()}
     return o
 
 
@@ -283,15 +277,14 @@ class ReporterAgent(
             logical_cpu_count = ray._private.utils.get_num_cpus(
                 override_docker_cpu_warning=True
             )
-            # (Override the docker warning to avoid dashboard log spam.)
-
-            # The dashboard expects a physical CPU count as well.
-            # This is not always meaningful in a container, but we will go ahead
-            # and give the dashboard what it wants using psutil.
-            physical_cpu_count = psutil.cpu_count(logical=False)
         else:
             logical_cpu_count = psutil.cpu_count()
-            physical_cpu_count = psutil.cpu_count(logical=False)
+        # (Override the docker warning to avoid dashboard log spam.)
+
+        # The dashboard expects a physical CPU count as well.
+        # This is not always meaningful in a container, but we will go ahead
+        # and give the dashboard what it wants using psutil.
+        physical_cpu_count = psutil.cpu_count(logical=False)
         self._cpu_counts = (logical_cpu_count, physical_cpu_count)
         self._gcs_aio_client = dashboard_agent.gcs_aio_client
         self._ip = dashboard_agent.ip
@@ -380,10 +373,7 @@ class ReporterAgent(
 
     @staticmethod
     def _get_cpu_percent(in_k8s: bool):
-        if in_k8s:
-            return k8s_utils.cpu_percent()
-        else:
-            return psutil.cpu_percent()
+        return k8s_utils.cpu_percent() if in_k8s else psutil.cpu_percent()
 
     @staticmethod
     def _get_gpu_usage():
@@ -459,18 +449,15 @@ class ReporterAgent(
 
     @staticmethod
     def _get_disk_io_stats():
-        stats = psutil.disk_io_counters()
-        # stats can be None or {} if the machine is diskless.
-        # https://psutil.readthedocs.io/en/latest/#psutil.disk_io_counters
-        if not stats:
-            return (0, 0, 0, 0)
-        else:
+        if stats := psutil.disk_io_counters():
             return (
                 stats.read_bytes,
                 stats.write_bytes,
                 stats.read_count,
                 stats.write_count,
             )
+        else:
+            return (0, 0, 0, 0)
 
     def _get_agent_proc(self) -> psutil.Process:
         # Agent is the current process.
@@ -485,54 +472,46 @@ class ReporterAgent(
 
         if raylet_proc is None:
             return []
-        else:
-            workers = {
-                self._generate_worker_key(proc): proc for proc in raylet_proc.children()
-            }
+        workers = {
+            self._generate_worker_key(proc): proc for proc in raylet_proc.children()
+        }
 
-            # We should keep `raylet_proc.children()` in `self` because
-            # when `cpu_percent` is first called, it returns the meaningless 0.
-            # See more: https://github.com/ray-project/ray/issues/29848
-            keys_to_pop = []
-            # Add all new workers.
-            for key, worker in workers.items():
-                if key not in self._workers:
-                    self._workers[key] = worker
+        # Add all new workers.
+        for key, worker in workers.items():
+            if key not in self._workers:
+                self._workers[key] = worker
 
-            # Pop out stale workers.
-            for key in self._workers:
-                if key not in workers:
-                    keys_to_pop.append(key)
-            for k in keys_to_pop:
-                self._workers.pop(k)
+        keys_to_pop = [key for key in self._workers if key not in workers]
+        for k in keys_to_pop:
+            self._workers.pop(k)
 
-            # Remove the current process (reporter agent), which is also a child of
-            # the Raylet.
-            self._workers.pop(self._generate_worker_key(self._get_agent_proc()))
+        # Remove the current process (reporter agent), which is also a child of
+        # the Raylet.
+        self._workers.pop(self._generate_worker_key(self._get_agent_proc()))
 
-            result = []
-            for w in self._workers.values():
-                try:
-                    if w.status() == psutil.STATUS_ZOMBIE:
-                        continue
-                except psutil.NoSuchProcess:
-                    # the process may have terminated due to race condition.
+        result = []
+        for w in self._workers.values():
+            try:
+                if w.status() == psutil.STATUS_ZOMBIE:
                     continue
+            except psutil.NoSuchProcess:
+                # the process may have terminated due to race condition.
+                continue
 
-                result.append(
-                    w.as_dict(
-                        attrs=[
-                            "pid",
-                            "create_time",
-                            "cpu_percent",
-                            "cpu_times",
-                            "cmdline",
-                            "memory_info",
-                            "memory_full_info",
-                        ]
-                    )
+            result.append(
+                w.as_dict(
+                    attrs=[
+                        "pid",
+                        "create_time",
+                        "cpu_percent",
+                        "cpu_times",
+                        "cmdline",
+                        "memory_info",
+                        "memory_full_info",
+                    ]
                 )
-            return result
+            )
+        return result
 
     def _get_raylet_proc(self):
         try:
@@ -609,9 +588,7 @@ class ReporterAgent(
         If shm doesn't exist (e.g., MacOS), it returns None.
         """
         mem = psutil.virtual_memory()
-        if not hasattr(mem, "shared"):
-            return None
-        return mem.shared
+        return None if not hasattr(mem, "shared") else mem.shared
 
     def _get_all_stats(self):
         now = dashboard_utils.to_posix_time(datetime.datetime.utcnow())
@@ -659,14 +636,13 @@ class ReporterAgent(
         """
         tags = {"ip": self._ip, "Component": component_name}
 
-        records = []
-        records.append(
+        records = [
             Record(
                 gauge=METRICS_GAUGES["component_cpu_percentage"],
                 value=0.0,
                 tags=tags,
             )
-        )
+        ]
         records.append(
             Record(
                 gauge=METRICS_GAUGES["component_mem_shared_bytes"],
@@ -712,8 +688,7 @@ class ReporterAgent(
 
         for stat in stats:
             total_cpu_percentage += float(stat.get("cpu_percent", 0.0))  # noqa
-            memory_info = stat.get("memory_info")
-            if memory_info:
+            if memory_info := stat.get("memory_info"):
                 mem = stat["memory_info"]
                 total_rss += float(mem.rss) / 1.0e6
                 if hasattr(mem, "shared"):
@@ -726,14 +701,13 @@ class ReporterAgent(
         if pid:
             tags["pid"] = pid
 
-        records = []
-        records.append(
+        records = [
             Record(
                 gauge=METRICS_GAUGES["component_cpu_percentage"],
                 value=total_cpu_percentage,
                 tags=tags,
             )
-        )
+        ]
         records.append(
             Record(
                 gauge=METRICS_GAUGES["component_mem_shared_bytes"],

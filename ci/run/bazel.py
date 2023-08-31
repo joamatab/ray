@@ -66,7 +66,7 @@ def textproto_split(input_lines, json_encoder):
             next_line.endswith(b"]") or next_line.endswith(b'"')
         )
         prev_tail = tail
-    if len(outputs) > 0:
+    if outputs:
         yield b"".join(outputs)
         del outputs[:]
 
@@ -138,8 +138,7 @@ def parse_aquery_output_artifacts(aquery_results):
 
     for action in aquery_results["actions"]:
         for output_id in action["outputIds"]:
-            path = os.path.join(*_path(artifacts[output_id]["pathFragmentId"]))
-            yield path
+            yield os.path.join(*_path(artifacts[output_id]["pathFragmentId"]))
 
 
 def textproto2json(infile, outfile):
@@ -237,7 +236,7 @@ def shellcheck(bazel_aquery, *shellcheck_argv):
             if bazel_execution_root is None:
                 bazel_execution_root = bazel.info()["execution_root"]
             cwd = bazel_execution_root
-            cmdargs = ["--shell=" + shell, "--external-sources"] + filenames
+            cmdargs = [f"--shell={shell}", "--external-sources"] + filenames
             cmdargs = shellcheck_argv + cmdargs
             proc = subprocess.Popen(cmdargs, stdin=subprocess.PIPE, cwd=cwd)
             try:
@@ -257,7 +256,7 @@ def main(program, command, *command_args):
     elif command == preclean.__name__:
         result = preclean(*command_args)
     else:
-        raise ValueError("Unrecognized command: " + command)
+        raise ValueError(f"Unrecognized command: {command}")
     return result
 
 

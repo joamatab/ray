@@ -85,8 +85,7 @@ assert ray.get(object_ref2) == 2
 # __generator_start__
 @ray.remote(num_returns=3)
 def return_multiple_as_generator():
-    for i in range(3):
-        yield i
+    yield from range(3)
 
 
 # NOTE: Similar to normal functions, these objects will not be available

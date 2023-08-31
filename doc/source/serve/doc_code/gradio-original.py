@@ -9,14 +9,12 @@ generator2 = pipeline("text-generation", model="distilgpt2")
 
 def model1(text):
     generated_list = generator1(text, do_sample=True, min_length=20, max_length=100)
-    generated = generated_list[0]["generated_text"]
-    return generated
+    return generated_list[0]["generated_text"]
 
 
 def model2(text):
     generated_list = generator2(text, do_sample=True, min_length=20, max_length=100)
-    generated = generated_list[0]["generated_text"]
-    return generated
+    return generated_list[0]["generated_text"]
 
 
 demo = gr.Interface(

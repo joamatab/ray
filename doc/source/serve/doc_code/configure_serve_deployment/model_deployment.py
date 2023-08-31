@@ -34,10 +34,7 @@ class Translator:
         # Run inference
         model_output = self.model(text)
 
-        # Post-process output to return only the translation text
-        translation = model_output[0]["translation_text"]
-
-        return translation
+        return model_output[0]["translation_text"]
 
 
 translator_app = Translator.bind()

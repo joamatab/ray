@@ -267,7 +267,7 @@ def _generate_grafana_panels(
 
 
 def gen_incrementing_alphabets(length):
-    assert 65 + length < 96, "we only support up to 26 targets at a time."
+    assert length < 31, "we only support up to 26 targets at a time."
     # 65: ascii code of 'A'.
     return list(map(chr, range(65, 65 + length)))
 
