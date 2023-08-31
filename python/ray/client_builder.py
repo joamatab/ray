@@ -223,21 +223,20 @@ class ClientBuilder:
             self._allow_multiple_connections = True
             del kwargs["allow_multiple"]
 
-        if "_credentials" in kwargs.keys():
+        if "_credentials" in kwargs:
             self._credentials = kwargs["_credentials"]
             del kwargs["_credentials"]
 
-        if "_metadata" in kwargs.keys():
+        if "_metadata" in kwargs:
             self._metadata = kwargs["_metadata"]
             del kwargs["_metadata"]
 
         if kwargs:
             expected_sig = inspect.signature(ray_driver_init)
-            extra_args = set(kwargs.keys()).difference(expected_sig.parameters.keys())
-            if len(extra_args) > 0:
-                raise RuntimeError(
-                    "Got unexpected kwargs: {}".format(", ".join(extra_args))
-                )
+            if extra_args := set(kwargs.keys()).difference(
+                expected_sig.parameters.keys()
+            ):
+                raise RuntimeError(f'Got unexpected kwargs: {", ".join(extra_args)}')
             self._remote_init_kwargs = kwargs
             unknown = ", ".join(kwargs)
             logger.info(
@@ -252,7 +251,6 @@ class ClientBuilder:
         created directly or through ray.client, instead of relying on
         internal methods (ray.init, or auto init)
         """
-        namespace = self._job_config.ray_namespace
         runtime_env = self._job_config.runtime_env
         replacement_args = []
         if self.address:
@@ -264,7 +262,7 @@ class ClientBuilder:
                 replacement_args.append(f'"{self.address}"')
             else:
                 replacement_args.append(f'"ray://{self.address}"')
-        if namespace:
+        if namespace := self._job_config.ray_namespace:
             replacement_args.append(f'namespace="{namespace}"')
         if runtime_env:
             # Use a placeholder here, since the real runtime_env would be
@@ -303,9 +301,7 @@ class _LocalClientBuilder(ClientBuilder):
         connection_dict = ray.init(address=self.address, job_config=self._job_config)
         return ClientContext(
             dashboard_url=connection_dict["webui_url"],
-            python_version="{}.{}.{}".format(
-                sys.version_info[0], sys.version_info[1], sys.version_info[2]
-            ),
+            python_version=f"{sys.version_info[0]}.{sys.version_info[1]}.{sys.version_info[2]}",
             ray_version=ray.__version__,
             ray_commit=ray.__commit__,
             protocol_version=None,
@@ -321,7 +317,7 @@ def _split_address(address: str) -> Tuple[str, str]:
     If the scheme is not present, then "ray://" is prepended to the address.
     """
     if "://" not in address:
-        address = "ray://" + address
+        address = f"ray://{address}"
     return split_address(address)
 
 

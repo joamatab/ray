@@ -10,14 +10,14 @@ ray.init(num_gpus=2)
 @ray.remote(num_gpus=1)
 class GPUActor:
     def ping(self):
-        print("ray.get_gpu_ids(): {}".format(ray.get_gpu_ids()))
-        print("CUDA_VISIBLE_DEVICES: {}".format(os.environ["CUDA_VISIBLE_DEVICES"]))
+        print(f"ray.get_gpu_ids(): {ray.get_gpu_ids()}")
+        print(f'CUDA_VISIBLE_DEVICES: {os.environ["CUDA_VISIBLE_DEVICES"]}')
 
 
 @ray.remote(num_gpus=1)
 def use_gpu():
-    print("ray.get_gpu_ids(): {}".format(ray.get_gpu_ids()))
-    print("CUDA_VISIBLE_DEVICES: {}".format(os.environ["CUDA_VISIBLE_DEVICES"]))
+    print(f"ray.get_gpu_ids(): {ray.get_gpu_ids()}")
+    print(f'CUDA_VISIBLE_DEVICES: {os.environ["CUDA_VISIBLE_DEVICES"]}')
 
 
 gpu_actor = GPUActor.remote()
@@ -71,7 +71,7 @@ ray.init(num_gpus=3)
 @ray.remote(num_gpus=0.5)
 class FractionalGPUActor:
     def ping(self):
-        print("ray.get_gpu_ids(): {}".format(ray.get_gpu_ids()))
+        print(f"ray.get_gpu_ids(): {ray.get_gpu_ids()}")
 
 
 fractional_gpu_actors = [FractionalGPUActor.remote() for _ in range(3)]

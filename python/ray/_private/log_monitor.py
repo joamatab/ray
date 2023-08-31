@@ -240,8 +240,7 @@ class LogMonitor:
             monitor_log_paths += glob.glob(f"{self.logs_dir}/runtime_env*.log")
         for file_path in monitor_log_paths:
             if os.path.isfile(file_path) and file_path not in self.log_filenames:
-                worker_match = WORKER_LOG_PATTERN.match(file_path)
-                if worker_match:
+                if worker_match := WORKER_LOG_PATTERN.match(file_path):
                     worker_pid = int(worker_match.group(2))
                 else:
                     worker_pid = None
@@ -250,8 +249,9 @@ class LogMonitor:
                 # Perform existence check first because most file will not be
                 # including runtime_env. This saves some cpu cycle.
                 if "runtime_env" in file_path:
-                    runtime_env_job_match = RUNTIME_ENV_SETUP_PATTERN.match(file_path)
-                    if runtime_env_job_match:
+                    if runtime_env_job_match := RUNTIME_ENV_SETUP_PATTERN.match(
+                        file_path
+                    ):
                         job_id = runtime_env_job_match.group(1)
 
                 is_err_file = file_path.endswith("err")
@@ -309,15 +309,14 @@ class LogMonitor:
                 try:
                     f = open(file_info.filename, "rb")
                 except (IOError, OSError) as e:
-                    if e.errno == errno.ENOENT:
-                        logger.warning(
-                            f"Warning: The file {file_info.filename} was not found."
-                        )
-                        self.log_filenames.remove(file_info.filename)
-                        continue
-                    else:
+                    if e.errno != errno.ENOENT:
                         raise e
 
+                    logger.warning(
+                        f"Warning: The file {file_info.filename} was not found."
+                    )
+                    self.log_filenames.remove(file_info.filename)
+                    continue
                 f.seek(file_info.file_position)
                 file_info.size_when_last_opened = file_size
                 file_info.file_handle = f
@@ -342,7 +341,7 @@ class LogMonitor:
         def flush():
             nonlocal lines_to_publish
             nonlocal anything_published
-            if len(lines_to_publish) > 0:
+            if lines_to_publish:
                 data = {
                     "ip": self.ip,
                     "pid": file_info.worker_pid,

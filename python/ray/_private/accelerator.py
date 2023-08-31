@@ -70,12 +70,10 @@ def _detect_and_configure_aws_neuron_core(resources: dict):
     if neuron_cores is not None:
         # 4. Update accelerator_type and neuron_cores with
         # number of neuron cores detected or configured.
-        resources.update(
-            {
-                ray_constants.NEURON_CORES: neuron_cores,
-                utils.get_neuron_core_constraint_name(): neuron_cores,
-            }
-        )
+        resources |= {
+            ray_constants.NEURON_CORES: neuron_cores,
+            utils.get_neuron_core_constraint_name(): neuron_cores,
+        }
 
 
 def _autodetect_aws_neuron_cores() -> Optional[int]:
@@ -85,10 +83,12 @@ def _autodetect_aws_neuron_cores() -> Optional[int]:
     Returns:
         The number of Neuron cores if any were detected, otherwise None.
     """
-    result = None
-    if sys.platform.startswith("linux") and os.path.isdir("/opt/aws/neuron/bin/"):
-        result = _get_neuron_core_count()
-    return result
+    return (
+        _get_neuron_core_count()
+        if sys.platform.startswith("linux")
+        and os.path.isdir("/opt/aws/neuron/bin/")
+        else None
+    )
 
 
 def _get_neuron_core_count() -> int:

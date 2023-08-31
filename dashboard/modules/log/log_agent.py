@@ -101,11 +101,11 @@ def find_end_offset_next_n_lines_from_offset(
     file.seek(start_offset)  # move file pointer to start offset
     end_offset = None
     for _ in range(n):  # loop until we find n lines or reach end of file
-        line = file.readline()  # read a line and consume new line character
-        if not line:  # end of file
-            break
-        end_offset = file.tell()  # end offset.
+        if line := file.readline():
+            end_offset = file.tell()  # end offset.
 
+        else:
+            break
     logger.debug(f"Found next {n} lines from {start_offset} offset")
     return (
         end_offset if end_offset is not None else file.seek(0, io.SEEK_END)
@@ -294,9 +294,7 @@ class LogAgentV1Grpc(dashboard_utils.DashboardAgentModule):
                 f"Could not find log dir at path: {self._dashboard_agent.log_dir}"
                 "It is unexpected. Please report an issue to Ray Github."
             )
-        log_files = []
-        for p in path.glob(request.glob_filter):
-            log_files.append(str(p.relative_to(path)))
+        log_files = [str(p.relative_to(path)) for p in path.glob(request.glob_filter)]
         return reporter_pb2.ListLogsReply(log_files=log_files)
 
     @classmethod

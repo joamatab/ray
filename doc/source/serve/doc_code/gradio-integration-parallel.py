@@ -23,8 +23,7 @@ class TextGenerationModel:
         generated_list = self.generator(
             text, do_sample=True, min_length=20, max_length=100
         )
-        generated = generated_list[0]["generated_text"]
-        return generated
+        return generated_list[0]["generated_text"]
 
 
 app1 = TextGenerationModel.bind("gpt2")

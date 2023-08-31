@@ -20,10 +20,7 @@ class BoolOrStringParam(click.ParamType):
     name = "BOOL | TEXT"
 
     def convert(self, value, param, ctx):
-        if isinstance(value, bool):
-            return value
-        else:
-            return bool_cast(value)
+        return value if isinstance(value, bool) else bool_cast(value)
 
 
 def add_common_job_options(func):

@@ -35,7 +35,7 @@ def train_func(config):
     mean_valid_loss = torchmetrics.MeanMetric()
 
     optimizer = Adam(model.parameters(), lr=3e-4)
-    for epoch in range(config["num_epochs"]):
+    for _ in range(config["num_epochs"]):
         model.train()
         y = model.forward(X)
 

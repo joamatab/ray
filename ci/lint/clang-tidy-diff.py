@@ -66,7 +66,7 @@ def run_tidy(task_queue, lock, timeout):
                     sys.stderr.flush()
         except Exception as e:
             with lock:
-                sys.stderr.write("Failed: " + str(e) + ": ".join(command) + "\n")
+                sys.stderr.write(f"Failed: {str(e)}" + ": ".join(command) + "\n")
         finally:
             with lock:
                 if timeout is not None and watchdog is not None:
@@ -92,10 +92,8 @@ def merge_replacement_files(tmpdir, mergefile):
     mergekey = "Diagnostics"
     merged = []
     for replacefile in glob.iglob(os.path.join(tmpdir, "*.yaml")):
-        content = yaml.safe_load(open(replacefile, "r"))
-        if not content:
-            continue  # Skip empty files.
-        merged.extend(content.get(mergekey, []))
+        if content := yaml.safe_load(open(replacefile, "r")):
+            merged.extend(content.get(mergekey, []))
 
     if merged:
         # MainSourceFile: The key is required by the definition inside
@@ -202,21 +200,20 @@ def main():
     filename = None
     lines_by_file = {}
     for line in sys.stdin:
-        match = re.search('^\+\+\+\ "?(.*?/){%s}([^ \t\n"]*)' % args.p, line)
-        if match:
+        if match := re.search(
+            '^\+\+\+\ "?(.*?/){%s}([^ \t\n"]*)' % args.p, line
+        ):
             filename = match.group(2)
         if filename is None:
             continue
 
-        if args.regex is not None:
-            if not re.match("^%s$" % args.regex, filename):
-                continue
-        else:
-            if not re.match("^%s$" % args.iregex, filename, re.IGNORECASE):
+        if args.regex is None:
+            if not re.match(f"^{args.iregex}$", filename, re.IGNORECASE):
                 continue
 
-        match = re.search("^@@.*\+(\d+)(,(\d+))?", line)
-        if match:
+        elif not re.match(f"^{args.regex}$", filename):
+            continue
+        if match := re.search("^@@.*\+(\d+)(,(\d+))?", line):
             start_line = int(match.group(1))
             line_count = 1
             if match.group(3):
@@ -235,10 +232,7 @@ def main():
         max_task_count = multiprocessing.cpu_count()
     max_task_count = min(len(lines_by_file), max_task_count)
 
-    tmpdir = None
-    if yaml and args.export_fixes:
-        tmpdir = tempfile.mkdtemp()
-
+    tmpdir = tempfile.mkdtemp() if yaml and args.export_fixes else None
     # Tasks for clang-tidy.
     task_queue = queue.Queue(max_task_count)
     # A lock for console output.
@@ -252,30 +246,28 @@ def main():
     if args.fix:
         common_clang_tidy_args.append("-fix")
     if args.checks != "":
-        common_clang_tidy_args.append("-checks=" + args.checks)
+        common_clang_tidy_args.append(f"-checks={args.checks}")
     if args.quiet:
         common_clang_tidy_args.append("-quiet")
     if args.build_path is not None:
-        common_clang_tidy_args.append("-p=%s" % args.build_path)
-    for arg in args.extra_arg:
-        common_clang_tidy_args.append("-extra-arg=%s" % arg)
-    for arg in args.extra_arg_before:
-        common_clang_tidy_args.append("-extra-arg-before=%s" % arg)
-
+        common_clang_tidy_args.append(f"-p={args.build_path}")
+    common_clang_tidy_args.extend(f"-extra-arg={arg}" for arg in args.extra_arg)
+    common_clang_tidy_args.extend(
+        f"-extra-arg-before={arg}" for arg in args.extra_arg_before
+    )
     for name in lines_by_file:
         line_filter_json = json.dumps(
             [{"name": name, "lines": lines_by_file[name]}], separators=(",", ":")
         )
 
         # Run clang-tidy on files containing changes.
-        command = [args.clang_tidy_binary]
-        command.append("-line-filter=" + line_filter_json)
+        command = [args.clang_tidy_binary, f"-line-filter={line_filter_json}"]
         if yaml and args.export_fixes:
             # Get a temporary file. We immediately close the handle so
             # clang-tidy can overwrite it.
             (handle, tmp_name) = tempfile.mkstemp(suffix=".yaml", dir=tmpdir)
             os.close(handle)
-            command.append("-export-fixes=" + tmp_name)
+            command.append(f"-export-fixes={tmp_name}")
         command.extend(common_clang_tidy_args)
         command.append(name)
         command.extend(clang_tidy_args)
@@ -286,7 +278,7 @@ def main():
     task_queue.join()
 
     if yaml and args.export_fixes:
-        print("Writing fixes to " + args.export_fixes + " ...")
+        print(f"Writing fixes to {args.export_fixes} ...")
         try:
             merge_replacement_files(tmpdir, args.export_fixes)
         except Exception:

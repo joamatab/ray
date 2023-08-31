@@ -56,8 +56,7 @@ class StableDiffusionV2:
         assert len(prompt), "prompt parameter cannot be empty"
 
         with torch.autocast("cuda"):
-            image = self.pipe(prompt, height=img_size, width=img_size).images[0]
-            return image
+            return self.pipe(prompt, height=img_size, width=img_size).images[0]
 
 
 entrypoint = APIIngress.bind(StableDiffusionV2.bind())

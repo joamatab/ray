@@ -351,15 +351,15 @@ class BCTorchMultiAgentModuleWithSharedEncoder(MultiAgentRLModule):
             nn.Linear(hidden_dim, hidden_dim),
         )
 
-        rl_modules = {}
-        for module_id, module_spec in module_specs.items():
-            rl_modules[module_id] = BCTorchRLModuleWithSharedGlobalEncoder(
+        rl_modules = {
+            module_id: BCTorchRLModuleWithSharedGlobalEncoder(
                 encoder=shared_encoder,
                 local_dim=module_spec.observation_space["local"].shape[0],
                 hidden_dim=hidden_dim,
                 action_dim=module_spec.action_space.n,
             )
-
+            for module_id, module_spec in module_specs.items()
+        }
         self._rl_modules = rl_modules
 
 

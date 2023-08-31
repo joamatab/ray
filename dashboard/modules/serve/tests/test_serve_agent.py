@@ -459,7 +459,7 @@ def test_get_status(ray_start_stop):
         expected_deployment_names.remove(deployment_status["name"])
         assert deployment_status["status"] in {"UPDATING", "HEALTHY"}
         assert deployment_status["message"] == ""
-    assert len(expected_deployment_names) == 0
+    assert not expected_deployment_names
     print("Deployments' statuses are correct.")
 
     assert serve_status["app_status"]["status"] in {"DEPLOYING", "RUNNING"}
@@ -566,7 +566,7 @@ def test_get_serve_instance_details(ray_start_stop, f_deployment_options):
     # Check HTTP Proxy statuses
     for proxy in serve_details.http_proxies.values():
         assert proxy.status == HTTPProxyStatus.HEALTHY
-        assert os.path.exists("/tmp/ray/session_latest/logs" + proxy.log_file_path)
+        assert os.path.exists(f"/tmp/ray/session_latest/logs{proxy.log_file_path}")
     print("Checked HTTP Proxy details.")
     # Check controller info
     assert serve_details.controller_info.actor_id
@@ -574,7 +574,7 @@ def test_get_serve_instance_details(ray_start_stop, f_deployment_options):
     assert serve_details.controller_info.node_id
     assert serve_details.controller_info.node_ip
     assert os.path.exists(
-        "/tmp/ray/session_latest/logs" + serve_details.controller_info.log_file_path
+        f"/tmp/ray/session_latest/logs{serve_details.controller_info.log_file_path}"
     )
 
     app_details = serve_details.applications
@@ -613,7 +613,7 @@ def test_get_serve_instance_details(ray_start_stop, f_deployment_options):
                 )
                 assert replica.actor_id and replica.node_id and replica.node_ip
                 assert replica.start_time_s > app_details[app].last_deployed_time_s
-                file_path = "/tmp/ray/session_latest/logs" + replica.log_file_path
+                file_path = f"/tmp/ray/session_latest/logs{replica.log_file_path}"
                 assert os.path.exists(file_path)
 
     print("Finished checking application details.")

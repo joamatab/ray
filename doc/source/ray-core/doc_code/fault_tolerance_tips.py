@@ -5,8 +5,7 @@ import ray
 # Non-fault tolerant version:
 @ray.remote
 def a():
-    x_ref = ray.put(1)
-    return x_ref
+    return ray.put(1)
 
 
 x_ref = ray.get(a.remote())

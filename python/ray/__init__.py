@@ -76,7 +76,7 @@ def _configure_system():
     # libraries such as _streaming.so. See BUILD.bazel:_raylet
     python_shared_lib_suffix = ".so" if sys.platform != "win32" else ".pyd"
     so_path = os.path.join(
-        os.path.dirname(__file__), "_raylet" + python_shared_lib_suffix
+        os.path.dirname(__file__), f"_raylet{python_shared_lib_suffix}"
     )
     if os.path.exists(so_path):
         import ctypes
@@ -289,8 +289,8 @@ __all__ += [
 def __getattr__(name: str):
     import importlib
 
-    if name in ["data", "workflow", "autoscaler"]:
-        return importlib.import_module("." + name, __name__)
+    if name in {"data", "workflow", "autoscaler"}:
+        return importlib.import_module(f".{name}", __name__)
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 

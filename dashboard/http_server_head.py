@@ -186,7 +186,7 @@ class HttpServerDashboardHead:
             except OSError as e:
                 last_ex = e
                 self.http_port += 1
-                logger.warning("Try to use port %s: %s", self.http_port, e)
+                logger.warning("Try to use port %s: %s", self.http_port, last_ex)
         else:
             raise Exception(
                 f"Failed to find a valid port for dashboard after "

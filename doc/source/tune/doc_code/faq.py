@@ -149,10 +149,7 @@ import numpy as np
 
 
 def train_func(config, num_epochs=5, data=None):
-    for i in range(num_epochs):
-        for sample in data:
-            # ... train on sample
-            pass
+    pass
 
 
 # Some huge dataset
@@ -348,7 +345,7 @@ import random
 
 
 def trainable(config):
-    for epoch in range(1, config["num_epochs"]):
+    for _ in range(1, config["num_epochs"]):
         # Do some training...
 
         with tempfile.TemporaryDirectory() as tempdir:
@@ -387,7 +384,7 @@ def trainable(config):
     # model = ...
     # model.load_state_dict(model_state_dict)
 
-    for epoch in range(1, config["num_epochs"]):
+    for _ in range(1, config["num_epochs"]):
         # Do some more training...
         ...
 

@@ -102,8 +102,8 @@ class APIHead(dashboard_utils.DashboardHeadModule):
 
         request = gcs_service_pb2.KillActorViaGcsRequest()
         request.actor_id = bytes.fromhex(actor_id)
-        request.force_kill = force_kill
         request.no_restart = no_restart
+        request.force_kill = force_kill
         await self._gcs_actor_info_stub.KillActorViaGcs(
             request, timeout=SNAPSHOT_API_TIMEOUT_SECONDS
         )
@@ -111,8 +111,7 @@ class APIHead(dashboard_utils.DashboardHeadModule):
         message = (
             f"Force killed actor with id {actor_id}"
             if force_kill
-            else f"Requested actor with id {actor_id} to terminate. "
-            + "It will exit once running tasks complete"
+            else f"Requested actor with id {actor_id} to terminate. It will exit once running tasks complete"
         )
 
         return dashboard_optional_utils.rest_response(success=True, message=message)
@@ -356,7 +355,7 @@ class APIHead(dashboard_utils.DashboardHeadModule):
                 "current_raylet_id": actor_table_entry.address.raylet_id.hex(),
                 "ip_address": actor_table_entry.address.ip_address,
                 "port": actor_table_entry.address.port,
-                "metadata": dict(),
+                "metadata": {},
             }
             actors[actor_id] = entry
 

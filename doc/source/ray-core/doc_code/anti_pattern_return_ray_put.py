@@ -6,18 +6,12 @@ import numpy as np
 @ray.remote
 def task_with_single_small_return_value_bad():
     small_return_value = 1
-    # The value will be stored in the object store
-    # and the reference is returned to the caller.
-    small_return_value_ref = ray.put(small_return_value)
-    return small_return_value_ref
+    return ray.put(small_return_value)
 
 
 @ray.remote
 def task_with_single_small_return_value_good():
-    small_return_value = 1
-    # Ray will return the value inline to the caller
-    # which is faster than the previous approach.
-    return small_return_value
+    return 1
 
 
 assert ray.get(ray.get(task_with_single_small_return_value_bad.remote())) == ray.get(
@@ -28,16 +22,12 @@ assert ray.get(ray.get(task_with_single_small_return_value_bad.remote())) == ray
 @ray.remote
 def task_with_single_large_return_value_bad():
     large_return_value = np.zeros(10 * 1024 * 1024)
-    large_return_value_ref = ray.put(large_return_value)
-    return large_return_value_ref
+    return ray.put(large_return_value)
 
 
 @ray.remote
 def task_with_single_large_return_value_good():
-    # Both approaches will store the large array to the object store
-    # but this is better since it's faster and more fault tolerant.
-    large_return_value = np.zeros(10 * 1024 * 1024)
-    return large_return_value
+    return np.zeros(10 * 1024 * 1024)
 
 
 assert np.array_equal(
@@ -132,10 +122,7 @@ assert (
 # __return_dynamic_multi_values_start__
 @ray.remote(num_returns=1)
 def task_with_dynamic_returns_bad(n):
-    return_value_refs = []
-    for i in range(n):
-        return_value_refs.append(ray.put(np.zeros(i * 1024 * 1024)))
-    return return_value_refs
+    return [ray.put(np.zeros(i * 1024 * 1024)) for i in range(n)]
 
 
 @ray.remote(num_returns="dynamic")

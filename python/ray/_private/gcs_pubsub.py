@@ -83,10 +83,11 @@ class _SubscriberBase:
 
     def _subscribe_request(self, channel):
         cmd = pubsub_pb2.Command(channel_type=channel, subscribe_message={})
-        req = gcs_service_pb2.GcsSubscriberCommandBatchRequest(
-            subscriber_id=self._subscriber_id, sender_id=self._worker_id, commands=[cmd]
+        return gcs_service_pb2.GcsSubscriberCommandBatchRequest(
+            subscriber_id=self._subscriber_id,
+            sender_id=self._worker_id,
+            commands=[cmd],
         )
-        return req
 
     def _poll_request(self):
         return gcs_service_pb2.GcsSubscriberPollRequest(
@@ -112,9 +113,7 @@ class _SubscriberBase:
             return True
         # Could be a temporary connection issue. Suppress error.
         # TODO: reconnect GRPC channel?
-        if e.code() == grpc.StatusCode.UNAVAILABLE:
-            return True
-        return False
+        return e.code() == grpc.StatusCode.UNAVAILABLE
 
     @staticmethod
     def _pop_error_info(queue):

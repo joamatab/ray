@@ -324,11 +324,9 @@ class MetricsHead(dashboard_utils.DashboardHeadModule):
 
     async def _query_prometheus(self, query):
         async with self.http_session.get(
-            f"{self.prometheus_host}/api/v1/query?query={quote(query)}"
-        ) as resp:
+                f"{self.prometheus_host}/api/v1/query?query={quote(query)}"
+            ) as resp:
             if resp.status == 200:
-                prom_data = await resp.json()
-                return prom_data
-
+                return await resp.json()
             message = await resp.text()
             raise PrometheusQueryError(resp.status, message)

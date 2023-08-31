@@ -114,9 +114,7 @@ class NodeHead(dashboard_utils.DashboardHeadModule):
         if change.new:
             # TODO(fyrestone): Handle exceptions.
             node_id, node_info = change.new
-            address = "{}:{}".format(
-                node_info["nodeManagerAddress"], int(node_info["nodeManagerPort"])
-            )
+            address = f'{node_info["nodeManagerAddress"]}:{int(node_info["nodeManagerPort"])}'
             options = ray_constants.GLOBAL_GRPC_OPTIONS
             channel = ray._private.utils.init_grpc_channel(
                 address, options, asynchronous=True
@@ -291,8 +289,7 @@ class NodeHead(dashboard_utils.DashboardHeadModule):
             return {}
         status_dict = json.loads(status_string)
 
-        lm_summary_dict = status_dict.get("load_metrics_report")
-        if lm_summary_dict:
+        if lm_summary_dict := status_dict.get("load_metrics_report"):
             lm_summary = LoadMetricsSummary(**lm_summary_dict)
 
         node_logical_resources = get_per_node_breakdown_as_dict(lm_summary)
@@ -317,10 +314,11 @@ class NodeHead(dashboard_utils.DashboardHeadModule):
                 node_logical_resources=nodes_logical_resources,
             )
         elif view is not None and view.lower() == "hostNameList".lower():
-            alive_hostnames = set()
-            for node in DataSource.nodes.values():
-                if node["state"] == "ALIVE":
-                    alive_hostnames.add(node["nodeManagerHostname"])
+            alive_hostnames = {
+                node["nodeManagerHostname"]
+                for node in DataSource.nodes.values()
+                if node["state"] == "ALIVE"
+            }
             return dashboard_optional_utils.rest_response(
                 success=True,
                 message="Node hostname list fetched.",

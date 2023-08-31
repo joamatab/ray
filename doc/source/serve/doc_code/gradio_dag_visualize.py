@@ -16,8 +16,7 @@ from ray.serve.drivers import DAGDriver
 @serve.deployment
 def downloader(image_url: str) -> ImageFile.ImageFile:
     image_bytes = requests.get(image_url).content
-    image = Image.open(BytesIO(image_bytes)).convert("RGB")
-    return image
+    return Image.open(BytesIO(image_bytes)).convert("RGB")
     # __doc_downloader_end__
 
 

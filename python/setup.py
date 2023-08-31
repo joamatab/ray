@@ -74,10 +74,9 @@ pickle5_url = (
 def find_version(*filepath):
     # Extract version information from filepath
     with open(os.path.join(ROOT_DIR, *filepath)) as fp:
-        version_match = re.search(
+        if version_match := re.search(
             r"^__version__ = ['\"]([^'\"]*)['\"]", fp.read(), re.M
-        )
-        if version_match:
+        ):
             return version_match.group(1)
         raise RuntimeError("Unable to find version string.")
 
@@ -124,10 +123,10 @@ class SetupSpec:
 
 
 build_type = os.getenv("RAY_DEBUG_BUILD")
-if build_type == "debug":
-    BUILD_TYPE = BuildType.DEBUG
-elif build_type == "asan":
+if build_type == "asan":
     BUILD_TYPE = BuildType.ASAN
+elif build_type == "debug":
+    BUILD_TYPE = BuildType.DEBUG
 elif build_type == "tsan":
     BUILD_TYPE = BuildType.TSAN
 else:
@@ -150,11 +149,10 @@ else:
         "universal API for building distributed applications.",
         BUILD_TYPE,
     )
-    RAY_EXTRA_CPP = True
-    # Disable extra cpp for the development versions.
-    if "dev" in setup_spec.version or os.getenv("RAY_DISABLE_EXTRA_CPP") == "1":
-        RAY_EXTRA_CPP = False
-
+    RAY_EXTRA_CPP = (
+        "dev" not in setup_spec.version
+        and os.getenv("RAY_DISABLE_EXTRA_CPP") != "1"
+    )
 # Ideally, we could include these files by putting them in a
 # MANIFEST.in or using the package_data argument to setup, but the
 # MANIFEST.in gets applied at the very beginning when setup.py runs
@@ -163,16 +161,16 @@ else:
 
 # NOTE: The lists below must be kept in sync with ray/BUILD.bazel.
 ray_files = [
-    "ray/_raylet" + pyd_suffix,
-    "ray/core/src/ray/gcs/gcs_server" + exe_suffix,
-    "ray/core/src/ray/raylet/raylet" + exe_suffix,
+    f"ray/_raylet{pyd_suffix}",
+    f"ray/core/src/ray/gcs/gcs_server{exe_suffix}",
+    f"ray/core/src/ray/raylet/raylet{exe_suffix}",
 ]
 
 if BUILD_JAVA or os.path.exists(os.path.join(ROOT_DIR, "ray/jars/ray_dist.jar")):
     ray_files.append("ray/jars/ray_dist.jar")
 
 if setup_spec.type == SetupType.RAY_CPP:
-    setup_spec.files_to_include += ["ray/cpp/default_worker" + exe_suffix]
+    setup_spec.files_to_include += [f"ray/cpp/default_worker{exe_suffix}"]
     # C++ API library and project template files.
     setup_spec.files_to_include += [
         os.path.join(dirpath, filename)
@@ -304,7 +302,7 @@ if setup_spec.type == SetupType.RAY:
     )
 
     if RAY_EXTRA_CPP:
-        setup_spec.extras["cpp"] = ["ray-cpp==" + setup_spec.version]
+        setup_spec.extras["cpp"] = [f"ray-cpp=={setup_spec.version}"]
 
     setup_spec.extras["rllib"] = setup_spec.extras["tune"] + [
         "dm_tree",
@@ -363,7 +361,7 @@ if setup_spec.type == SetupType.RAY:
 def is_native_windows_or_msys():
     """Check to see if we are running on native Windows,
     but NOT WSL (which is seen as Linux)."""
-    return sys.platform == "msys" or sys.platform == "win32"
+    return sys.platform in ["msys", "win32"]
 
 
 def is_invalid_windows_platform():
@@ -381,9 +379,8 @@ def bazel_invoke(invoker, cmdline, *args, **kwargs):
     first_candidate = os.getenv("BAZEL_PATH", "bazel")
     candidates = [first_candidate]
     if sys.platform == "win32":
-        mingw_dir = os.getenv("MINGW_DIR")
-        if mingw_dir:
-            candidates.append(mingw_dir + "/bin/bazel.exe")
+        if mingw_dir := os.getenv("MINGW_DIR"):
+            candidates.append(f"{mingw_dir}/bin/bazel.exe")
     else:
         candidates.append(os.path.join(home, "bin", "bazel"))
     result = None
@@ -420,7 +417,7 @@ def download_pickle5(pickle5_dir):
             tf.extractall(work_dir)
         finally:
             tf.close()
-        src_dir = os.path.join(work_dir, project + "-" + commit)
+        src_dir = os.path.join(work_dir, f"{project}-{commit}")
         args = [sys.executable, "setup.py", "-q", "bdist_wheel"]
         subprocess.check_call(args, cwd=src_dir)
         for wheel in glob.glob(os.path.join(src_dir, "dist", "*.whl")):
@@ -481,8 +478,7 @@ def replace_symlinks_with_junctions():
         else:
             logger.info(f"Converting '{link}' to junction point...")
             if os.path.isfile(path):
-                with open(path) as inp:
-                    target = inp.read()
+                target = pathlib.Path(path).read_text()
                 os.unlink(path)
             elif os.path.isdir(path):
                 target = default
@@ -500,7 +496,7 @@ def replace_symlinks_with_junctions():
             else:
                 raise ValueError(f"Unexpected type of entry: '{path}'")
             target = os.path.abspath(os.path.join(os.path.dirname(path), target))
-            logger.info("Setting {} -> {}".format(link, target))
+            logger.info(f"Setting {link} -> {target}")
             subprocess.check_call(
                 f'MKLINK /J "{os.path.basename(link)}" "{target}"',
                 shell=True,
@@ -517,13 +513,7 @@ if is_automated_build and is_native_windows_or_msys():
 
 def build(build_python, build_java, build_cpp):
     if tuple(sys.version_info[:2]) not in SUPPORTED_PYTHONS:
-        msg = (
-            "Detected Python version {}, which is not supported. "
-            "Only Python {} are supported."
-        ).format(
-            ".".join(map(str, sys.version_info[:2])),
-            ", ".join(".".join(map(str, v)) for v in SUPPORTED_PYTHONS),
-        )
+        msg = f'Detected Python version {".".join(map(str, sys.version_info[:2]))}, which is not supported. Only Python {", ".join(".".join(map(str, v)) for v in SUPPORTED_PYTHONS)} are supported.'
         raise RuntimeError(msg)
 
     if is_invalid_windows_platform():
@@ -537,8 +527,7 @@ def build(build_python, build_java, build_cpp):
     bazel_env = dict(os.environ, PYTHON3_BIN_PATH=sys.executable)
 
     if is_native_windows_or_msys():
-        SHELL = bazel_env.get("SHELL")
-        if SHELL:
+        if SHELL := bazel_env.get("SHELL"):
             bazel_env.setdefault("BAZEL_SH", os.path.normpath(SHELL))
         BAZEL_SH = bazel_env.get("BAZEL_SH", "")
         SYSTEMROOT = os.getenv("SystemRoot")
@@ -573,30 +562,34 @@ def build(build_python, build_java, build_cpp):
     if not os.getenv("SKIP_THIRDPARTY_INSTALL"):
         pip_packages = ["psutil", "setproctitle==1.2.2", "colorama"]
         subprocess.check_call(
-            [
-                sys.executable,
-                "-m",
-                "pip",
-                "install",
-                "-q",
-                "--target=" + os.path.join(ROOT_DIR, THIRDPARTY_SUBDIR),
-            ]
-            + pip_packages,
+            (
+                [
+                    sys.executable,
+                    "-m",
+                    "pip",
+                    "install",
+                    "-q",
+                    f"--target={os.path.join(ROOT_DIR, THIRDPARTY_SUBDIR)}",
+                ]
+                + pip_packages
+            ),
             env=dict(os.environ, CC="gcc"),
         )
 
     # runtime env agent dependenceis
     runtime_env_agent_pip_packages = ["aiohttp"]
     subprocess.check_call(
-        [
-            sys.executable,
-            "-m",
-            "pip",
-            "install",
-            "-q",
-            "--target=" + os.path.join(ROOT_DIR, RUNTIME_ENV_AGENT_THIRDPARTY_SUBDIR),
-        ]
-        + runtime_env_agent_pip_packages
+        (
+            [
+                sys.executable,
+                "-m",
+                "pip",
+                "install",
+                "-q",
+                f"--target={os.path.join(ROOT_DIR, RUNTIME_ENV_AGENT_THIRDPARTY_SUBDIR)}",
+            ]
+            + runtime_env_agent_pip_packages
+        )
     )
 
     bazel_flags = ["--verbose_failures"]
@@ -625,8 +618,8 @@ def build(build_python, build_java, build_cpp):
                 os.makedirs(d)
 
         bazel_precmd_flags = [
-            "--output_user_root=" + root_dir,
-            "--output_base=" + out_dir,
+            f"--output_user_root={root_dir}",
+            f"--output_base={out_dir}",
         ]
 
         if is_native_windows_or_msys():
@@ -654,8 +647,7 @@ def build(build_python, build_java, build_cpp):
 def walk_directory(directory):
     file_list = []
     for root, dirs, filenames in os.walk(directory):
-        for name in filenames:
-            file_list.append(os.path.join(root, name))
+        file_list.extend(os.path.join(root, name) for name in filenames)
     return file_list
 
 
@@ -723,9 +715,10 @@ def pip_run(build_ext):
                         os.path.join(directory, filename)
                     )
 
-    copied_files = 0
-    for filename in setup_spec.files_to_include:
-        copied_files += copy_file(build_ext.build_lib, filename, ROOT_DIR)
+    copied_files = sum(
+        copy_file(build_ext.build_lib, filename, ROOT_DIR)
+        for filename in setup_spec.files_to_include
+    )
     if sys.platform == "win32":
         # _raylet.pyd links to some MSVC runtime DLLS, this one may not be
         # present on a user's machine. While vcruntime140.dll and
@@ -733,7 +726,7 @@ def pip_run(build_ext):
         runtime_dlls = ["msvcp140.dll"]
         add_system_dlls(runtime_dlls, os.path.join(build_ext.build_lib, "ray"))
         copied_files += len(runtime_dlls)
-    print("# of files copied to {}: {}".format(build_ext.build_lib, copied_files))
+    print(f"# of files copied to {build_ext.build_lib}: {copied_files}")
 
 
 def api_main(program, *args):

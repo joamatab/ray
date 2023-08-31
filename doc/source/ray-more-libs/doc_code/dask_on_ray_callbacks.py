@@ -12,9 +12,7 @@ from timeit import default_timer as timer
 
 class MyTimerCallback(RayDaskCallback):
     def _ray_pretask(self, key, object_refs):
-        # Executed at the start of the Ray task.
-        start_time = timer()
-        return start_time
+        return timer()
 
     def _ray_posttask(self, key, result, pre_state):
         # Executed at the end of the Ray task.
@@ -86,8 +84,7 @@ class SimpleCacheCallback(RayDaskCallback):
             return None
 
     def _ray_pretask(self, key, object_refs):
-        start_time = timer()
-        return start_time
+        return timer()
 
     def _ray_posttask(self, key, result, pre_state):
         execution_time = timer() - pre_state

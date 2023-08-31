@@ -236,19 +236,15 @@ class OpenCensusProxyCollector:
         Stale components won't be reported to Prometheus anymore.
         """
         with self._components_lock:
-            stale_components = []
             stale_component_ids = []
             for id, component in self._components.items():
                 elapsed = time.monotonic() - component.last_reported_time
                 if elapsed > self._component_timeout_s:
                     stale_component_ids.append(id)
                     logger.info(
-                        "Metrics from a worker ({}) is cleaned up due to "
-                        "timeout. Time since last report {}s".format(id, elapsed)
+                        f"Metrics from a worker ({id}) is cleaned up due to timeout. Time since last report {elapsed}s"
                     )
-            for id in stale_component_ids:
-                stale_components.append(self._components.pop(id))
-            return stale_components
+            return [self._components.pop(id) for id in stale_component_ids]
 
     # TODO(sang): add start and end timestamp
     def to_metric(
@@ -345,7 +341,7 @@ class OpenCensusProxyCollector:
         else:
             raise ValueError(f"unsupported aggregation type {type(agg_data)}")
 
-    def collect(self):  # pragma: NO COVER
+    def collect(self):    # pragma: NO COVER
         """Collect fetches the statistics from OpenCensus
         and delivers them as Prometheus Metrics.
         Collect is invoked every time a prometheus.Gatherer is run
@@ -368,8 +364,7 @@ class OpenCensusProxyCollector:
                             metrics_map,
                         )
 
-        for metric in metrics_map.values():
-            yield metric
+        yield from metrics_map.values()
 
 
 class MetricsAgent:
@@ -508,16 +503,18 @@ class PrometheusServiceDiscoveryWriter(threading.Thread):
         """Return the content for Prometheus service discovery."""
         nodes = ray.nodes()
         metrics_export_addresses = [
-            "{}:{}".format(node["NodeManagerAddress"], node["MetricsExportPort"])
+            f'{node["NodeManagerAddress"]}:{node["MetricsExportPort"]}'
             for node in nodes
             if node["alive"] is True
         ]
         gcs_client = GcsClient(address=self.gcs_address)
-        autoscaler_addr = gcs_client.internal_kv_get(b"AutoscalerMetricsAddress", None)
-        if autoscaler_addr:
+        if autoscaler_addr := gcs_client.internal_kv_get(
+            b"AutoscalerMetricsAddress", None
+        ):
             metrics_export_addresses.append(autoscaler_addr.decode("utf-8"))
-        dashboard_addr = gcs_client.internal_kv_get(b"DashboardMetricsAddress", None)
-        if dashboard_addr:
+        if dashboard_addr := gcs_client.internal_kv_get(
+            b"DashboardMetricsAddress", None
+        ):
             metrics_export_addresses.append(dashboard_addr.decode("utf-8"))
         return json.dumps(
             [{"labels": {"job": "ray"}, "targets": metrics_export_addresses}]
@@ -544,9 +541,7 @@ class PrometheusServiceDiscoveryWriter(threading.Thread):
     def get_temp_file_name(self):
         return os.path.join(
             self.temp_dir,
-            "{}_{}".format(
-                "tmp", ray._private.ray_constants.PROMETHEUS_SERVICE_DISCOVERY_FILE
-            ),
+            f"tmp_{ray._private.ray_constants.PROMETHEUS_SERVICE_DISCOVERY_FILE}",
         )
 
     def run(self):
@@ -556,8 +551,7 @@ class PrometheusServiceDiscoveryWriter(threading.Thread):
                 self.write()
             except Exception as e:
                 logger.warning(
-                    "Writing a service discovery file, {},"
-                    "failed.".format(self.get_target_file_name())
+                    f"Writing a service discovery file, {self.get_target_file_name()},failed."
                 )
                 logger.warning(traceback.format_exc())
                 logger.warning(f"Error message: {e}")

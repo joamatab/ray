@@ -89,7 +89,7 @@ def check_exit_code(result, exit_code):
 def _job_cli_group_test_address(mock_sdk_client, cmd, *args):
     runner = CliRunner()
 
-    create_cluster_if_needed = True if cmd == "submit" else False
+    create_cluster_if_needed = cmd == "submit"
     # Test passing address via command line.
     result = runner.invoke(job_cli_group, [cmd, "--address=arg_addr", *args])
     mock_sdk_client.assert_called_with(
@@ -393,7 +393,7 @@ class TestSubmit:
                 "entrypoint_num_gpus": None,
                 "entrypoint_resources": None,
             }
-            expected_kwargs.update(resources[1])
+            expected_kwargs |= resources[1]
             mock_client_instance.submit_job.assert_called_with(**expected_kwargs)
 
     def test_entrypoint_resources_invalid_json(self, mock_sdk_client):

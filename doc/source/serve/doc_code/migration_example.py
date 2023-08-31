@@ -210,8 +210,7 @@ class Preprocess:
     async def __call__(self, input):
         # do some preprocessing works for your inputs
         ref = await self.model_handle.forward.remote(input)
-        result = await ref
-        return result
+        return await ref
 
 
 handle = serve.run(Preprocess.bind(Model.bind()))

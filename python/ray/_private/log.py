@@ -7,8 +7,9 @@ from typing import Union
 
 def _print_loggers():
     """Print a formatted list of loggers and their handlers for debugging."""
-    loggers = {logging.root.name: logging.root}
-    loggers.update(dict(sorted(logging.root.manager.loggerDict.items())))
+    loggers = {logging.root.name: logging.root} | sorted(
+        logging.root.manager.loggerDict.items()
+    )
     for name, logger in loggers.items():
         if isinstance(logger, logging.Logger):
             print(f"  {name}: disabled={logger.disabled}, propagate={logger.propagate}")

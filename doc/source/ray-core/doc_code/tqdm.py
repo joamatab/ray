@@ -7,7 +7,7 @@ from ray.experimental.tqdm_ray import tqdm
 
 @ray.remote
 def f(name):
-    for x in tqdm(range(100), desc=name):
+    for _ in tqdm(range(100), desc=name):
         time.sleep(0.1)
 
 

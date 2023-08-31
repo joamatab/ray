@@ -82,10 +82,7 @@ import requests
 
 serve.run(StreamingResponder.bind())
 r = requests.get("http://localhost:8000/", stream=True)
-chunks = []
-for chunk in r.iter_content(chunk_size=None, decode_unicode=True):
-    chunks.append(chunk)
-
+chunks = list(r.iter_content(chunk_size=None, decode_unicode=True))
 assert ",".join(list(map(str, range(25)))) == ",".join(chunks)
 
 # __batch_stream_begin__
@@ -129,12 +126,8 @@ serve.run(StreamingResponder.bind())
 
 
 def issue_request(max) -> List[str]:
-    url = "http://localhost:8000/?max="
-    response = requests.get(url + str(max), stream=True)
-    chunks = []
-    for chunk in response.iter_content(chunk_size=None, decode_unicode=True):
-        chunks.append(chunk)
-    return chunks
+    response = requests.get(f"http://localhost:8000/?max={str(max)}", stream=True)
+    return list(response.iter_content(chunk_size=None, decode_unicode=True))
 
 
 requested_maxes = [1, 2, 5, 6, 9]

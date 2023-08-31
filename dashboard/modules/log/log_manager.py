@@ -294,12 +294,14 @@ class LogsManager:
                 f"Could not find log file for task: {task_id}"
                 f" (attempt {attempt_number}) with suffix: {suffix}"
             )
-        task_event = None
-        for t in reply.events_by_task:
-            if t.attempt_number == attempt_number:
-                task_event = t
-                break
-
+        task_event = next(
+            (
+                t
+                for t in reply.events_by_task
+                if t.attempt_number == attempt_number
+            ),
+            None,
+        )
         if task_event is None:
             raise FileNotFoundError(
                 "Could not find log file for task attempt:"
@@ -319,23 +321,24 @@ class LogsManager:
                 f"{task_id}({attempt_number}) due to missing node info."
             )
 
-        if log_info is None and actor_id is not None:
-            # This is a concurrent actor task. The logs will be interleaved.
-            # So we return the log file of the actor instead.
-            raise FileNotFoundError(
-                f"For actor task, please query actor log for "
-                f"actor({actor_id}): e.g. ray logs actor --id {actor_id} . Or "
-                "set RAY_ENABLE_RECORD_ACTOR_TASK_LOGGING=1 in actor's runtime env "
-                "or when starting the cluster. Recording actor task's log could be "
-                "expensive, so Ray turns it off by default."
-            )
-        elif log_info is None:
-            raise FileNotFoundError(
-                "Could not find log file for task attempt:"
-                f"{task_id}({attempt_number})."
-                f"Worker id = {worker_id}, node id = {node_id},"
-                f"log_info = {log_info}"
-            )
+        if log_info is None:
+            if actor_id is not None:
+                # This is a concurrent actor task. The logs will be interleaved.
+                # So we return the log file of the actor instead.
+                raise FileNotFoundError(
+                    f"For actor task, please query actor log for "
+                    f"actor({actor_id}): e.g. ray logs actor --id {actor_id} . Or "
+                    "set RAY_ENABLE_RECORD_ACTOR_TASK_LOGGING=1 in actor's runtime env "
+                    "or when starting the cluster. Recording actor task's log could be "
+                    "expensive, so Ray turns it off by default."
+                )
+            else:
+                raise FileNotFoundError(
+                    "Could not find log file for task attempt:"
+                    f"{task_id}({attempt_number})."
+                    f"Worker id = {worker_id}, node id = {node_id},"
+                    f"log_info = {log_info}"
+                )
 
         filename_key = "stdout_file" if suffix == "out" else "stderr_file"
         log_filename = log_info.get(filename_key, None)

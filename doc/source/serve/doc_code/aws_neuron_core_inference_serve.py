@@ -47,8 +47,7 @@ class APIIngress:
     @app.get("/infer")
     async def infer(self, sentence: str):
         ref = await self.handle.infer.remote(sentence)
-        result = await ref
-        return result
+        return await ref
 
 
 @serve.deployment(

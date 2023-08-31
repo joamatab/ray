@@ -7,10 +7,7 @@ class WorkQueue:
         self.queue = list(range(10))
 
     def get_work_item(self):
-        if self.queue:
-            return self.queue.pop(0)
-        else:
-            return None
+        return self.queue.pop(0) if self.queue else None
 
 
 @ray.remote
